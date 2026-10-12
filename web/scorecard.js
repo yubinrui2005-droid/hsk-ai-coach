@@ -4,14 +4,14 @@
  * 用 canvas 画一张可下载的图。所有数字都来自本次真实操作，不做任何修饰。
  */
 const CARD_W = 660;
-const CARD_H = 880;
+const CARD_H = 1100;
 
 const CARD_FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif";
 
-function rateRun(retry, peek) {
-  if (retry === 0 && peek === 0) return '一遍过，表达很清楚';
+function rateRun(retry, peek, twistHandled) {
+  if (retry === 0 && peek === 0) return twistHandled ? '一遍过，意外也接住了' : '一遍过，表达很清楚';
   if (retry === 0) return '表达清楚，提示用得也克制';
-  if (retry <= 2) return '基本能沟通，个别地方再打磨';
+  if (retry <= 2) return twistHandled ? '基本能沟通，临场反应不错' : '基本能沟通，个别地方再打磨';
   if (retry <= 5) return '敢说就是进步，多练几轮会更顺';
   return '先敢开口，准确度慢慢来';
 }
@@ -52,9 +52,29 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+/** 一行小标签 + 内容 */
+function infoLine(ctx, x, y, w, emoji, label, text, tone) {
+  const h = 22 + wrapText(ctx, text, w - 34).length * 24 + 18;
+  ctx.fillStyle = tone === 'twist' ? '#fff4e5' : '#f5f7fa';
+  roundRect(ctx, x, y, w, h, 12);
+  ctx.fill();
+
+  ctx.font = `400 13px ${CARD_FONT}`;
+  ctx.fillStyle = tone === 'twist' ? '#b06a00' : '#5b6775';
+  ctx.fillText(`${emoji} ${label}`, x + 16, y + 26);
+
+  ctx.font = `400 15px ${CARD_FONT}`;
+  ctx.fillStyle = '#1b2430';
+  wrapText(ctx, text, w - 32).forEach((ln, i) => {
+    ctx.fillText(ln, x + 16, y + 50 + i * 24);
+  });
+  return h;
+}
+
 /**
  * @param {CanvasRenderingContext2D} ctx
- * @param {object} d  { sceneName, role, done, total, retry, peek, ms, best, model }
+ * @param {object} d  { sceneName, sceneEmoji, role, persona, curse, twist, twistEmoji,
+ *                      twistHandled, twistFired, done, total, retry, peek, ms, best, model }
  */
 function drawScoreCard(ctx, d) {
   const PAD = 52;
@@ -79,12 +99,12 @@ function drawScoreCard(ctx, d) {
   // 场景名
   ctx.fillStyle = '#1b2430';
   ctx.font = `500 34px ${CARD_FONT}`;
-  ctx.fillText(d.sceneName, PAD, y);
+  ctx.fillText(`${d.sceneEmoji || '🎬'} ${d.sceneName}`, PAD, y);
 
   y += 26;
   ctx.fillStyle = '#888780';
   ctx.font = `400 14px ${CARD_FONT}`;
-  ctx.fillText(`对手角色：${d.role}`, PAD, y);
+  ctx.fillText(`对手：${d.role}（${d.persona || '—'}）`, PAD, y);
 
   y += 34;
   ctx.strokeStyle = '#e3e8ef';
@@ -150,8 +170,19 @@ function drawScoreCard(ctx, d) {
     }
   });
 
+  // 本局随机要素
+  y += 92 + 34;
+  if (d.curse) {
+    y += infoLine(ctx, PAD, y, IN, '🎯', '本局挑战', d.curse, 'curse') + 12;
+  }
+
+  if (d.twist && d.twistFired) {
+    const label = d.twistHandled ? '意外事件 · 一次化解' : '意外事件 · 绕了几圈才过去';
+    y += infoLine(ctx, PAD, y, IN, d.twistEmoji || '⚡', label, d.twist, 'twist') + 12;
+  }
+
   // 评价
-  y += 92 + 44;
+  y += 34;
   ctx.fillStyle = '#5b6775';
   ctx.font = `400 14px ${CARD_FONT}`;
   ctx.fillText('本次评价', PAD, y);
@@ -159,17 +190,19 @@ function drawScoreCard(ctx, d) {
   y += 34;
   ctx.fillStyle = '#0f6fd8';
   ctx.font = `500 22px ${CARD_FONT}`;
-  ctx.fillText(rateRun(d.retry, d.peek), PAD, y);
+  ctx.fillText(rateRun(d.retry, d.peek, d.twistHandled), PAD, y);
 
-  // 本场最佳表达
-  if (d.best) {
+  // 本场最佳表达（过长则截断，避免顶到页脚）
+  const best = String(d.best || '');
+  const bestText = best.length > 70 ? best.slice(0, 70) + '…' : best;
+  if (bestText) {
     y += 44;
     ctx.fillStyle = '#5b6775';
     ctx.font = `400 14px ${CARD_FONT}`;
     ctx.fillText('你说得最顺的一句', PAD, y);
 
     y += 20;
-    const lines = wrapText(ctx, d.best, IN - 40);
+    const lines = wrapText(ctx, bestText, IN - 40);
     const boxH = 26 + lines.length * 30 + 20;
     ctx.fillStyle = '#e7f1fd';
     roundRect(ctx, PAD, y, IN, boxH, 12);

@@ -147,26 +147,38 @@
   <section id="panel-scene" class="panel">
 
     <div class="card" id="scenePickerCard">
-      <h2>选一个场景</h2>
+      <h2>随机开局</h2>
       <p class="hint">
-        AI 扮演场景里的另一个人。你说的话决定对话能不能往下走——
-        <b>说不明白，对方就听不懂</b>。纠错不再是批改，是你通关要用的工具。
+        每一局由 <b>场景 + 对手性格 + 本局挑战 + 意外事件</b> 四张牌随机组成，
+        开局的剧本由 AI 现场编写——<b>同一场景再玩一次，台词也不一样</b>。
+        你说的话决定对话能不能往下走，说不明白对方就听不懂。
       </p>
-      <div class="scene-grid" id="sceneGrid"></div>
+
+      <label class="field-label">场景类别</label>
+      <div class="cat-row" id="sceneCatRow"></div>
+
+      <div class="setup-grid" id="setupGrid"></div>
+
       <div class="actions">
+        <button id="rerollBtn" class="btn">🎲 换一批</button>
         <button id="startSceneBtn" class="btn primary" disabled>开始对话</button>
       </div>
       <p class="hint small" id="sceneLevelNote"></p>
+      <p class="hint small">
+        素材池：18 个场景 × 10 种性格 × 9 种挑战 × 14 种意外，组合数超过两万种。
+      </p>
     </div>
 
     <div class="card" id="sceneRunCard" hidden>
       <div class="scene-head">
         <div>
           <strong id="sceneTitle"></strong>
+          <div class="scene-sub" id="sceneSub"></div>
           <span class="step-dots" id="stepDots"></span>
         </div>
         <button id="quitSceneBtn" class="btn ghost">退出</button>
       </div>
+      <p class="hint small" id="sceneNote"></p>
 
       <div class="chat" id="chat"></div>
 
@@ -191,7 +203,7 @@
       <h2>通关</h2>
       <p id="doneSummary"></p>
       <div class="canvas-wrap">
-        <canvas id="scoreCanvas" width="660" height="880"></canvas>
+        <canvas id="scoreCanvas" width="660" height="1100"></canvas>
       </div>
       <div class="actions">
         <button id="downloadCardBtn" class="btn primary">下载成绩卡</button>
@@ -281,11 +293,24 @@
       </div>
 
       <div class="card">
+        <h2>场景页怎么玩</h2>
+        <p>每一局由 <b>场景 + 对手性格 + 本局挑战 + 意外事件</b> 四张牌随机组成，点「🎲 换一批」重抽。
+        开局后 AI 会<b>现场编写这一局的剧本</b>（开场白、4 轮任务、意外的台词），所以同一个场景再玩一次也不一样。</p>
+        <ul class="list">
+          <li>素材池：18 场景 × 10 性格 × 9 挑战 × 14 意外，组合数 45,360</li>
+          <li><b>意外事件</b>会在第 2 或第 3 轮突然插入，角色会把那句话说出口，你得临场应对</li>
+          <li>只是重复原来那句话不算化解，要能处理新情况才算过——这一点写进了判断提示词</li>
+          <li>AI 编的剧本要过结构校验，不合格就回落本地模板，并在页面上如实标明来源</li>
+        </ul>
+      </div>
+
+      <div class="card">
         <h2>怎么用</h2>
         <ol class="list">
           <li>双击项目里的 <code>start.bat</code>（会用本地服务器打开，避免 file:// 的跨域限制）</li>
           <li>在「模型服务」里选服务商，填 Key，点「测试连接」确认通了，再「保存配置」</li>
           <li>选等级 → 输入句子 → 检查</li>
+          <li>到「场景」页随机开局 → 通关后下载成绩卡</li>
           <li>到「测试案例」页批量跑 20 条，逐条人工核对语义</li>
         </ol>
       </div>
@@ -300,6 +325,7 @@
 <script src="providers.js"></script>
 <script src="testcases.js"></script>
 <script src="scenes.js"></script>
+<script src="director.js"></script>
 <script src="scorecard.js"></script>
 <script src="app.js"></script>
 </body>

@@ -325,34 +325,77 @@ async function checkOne() {
 /* ---------------- 场景对话 ---------------- */
 
 const sceneState = {
-  scene: null,
+  setup: null,      // {scene, persona, curse, twist, twistAt}
+  script: null,     // {opening, steps[4], twistLine}
   step: 0,          // 当前第几轮（0 起）
-  history: [],      // {role:'assistant'|'user', text}
+  history: [],      // {role:'assistant'|'user', text, confused?, twist?}
   retry: 0,         // 没说清的次数
   peek: 0,          // 看提示次数
   best: '',         // 说得最顺的一句
   t0: 0,
   busy: false,
+  twistFired: false,
+  twistDone: false,
+  twistHandled: false,
+  sourceNote: '',
 };
 
-function renderSceneGrid() {
-  $('sceneGrid').innerHTML = SCENES.map((s) => `
-    <button class="scene-tile" data-id="${s.id}">
-      <span class="scene-name">${esc(s.name)}</span>
-      <span class="scene-role">${esc(s.role)}</span>
-      <span class="scene-meta">${s.steps.length} 轮</span>
-    </button>`).join('');
+/* ---- 随机开局 ---- */
+
+function renderCatRow() {
+  $('sceneCatRow').innerHTML = SCENE_CATS
+    .map((c, i) => `<button class="cat-chip${i === 0 ? ' is-active' : ''}" data-cat="${c}">${c}</button>`)
+    .join('');
+}
+
+let currentCat = '全部';
+
+function reroll() {
+  sceneState.setup = rollSetup(currentCat);
+  renderSetupCards();
+}
+
+function renderSetupCards() {
+  const s = sceneState.setup;
+  if (!s) return;
+  const tile = (kind, emoji, label, name, desc) => `
+    <div class="setup-tile">
+      <span class="st-kind">${kind}</span>
+      <span class="st-emoji">${emoji}</span>
+      <span class="st-name">${esc(name)}</span>
+      <span class="st-desc">${esc(desc)}</span>
+      <span class="st-label">${esc(label)}</span>
+    </div>`;
+
+  $('setupGrid').innerHTML = [
+    tile('场景', s.scene.emoji, s.scene.cat, s.scene.name, s.scene.brief),
+    tile('对手', s.persona.emoji, s.persona.name, s.scene.role, s.persona.desc),
+    tile('挑战', s.curse.emoji, '', '本局挑战', s.curse.text),
+    tile('意外', s.twist.emoji, `第 ${s.twistAt + 1} 轮`, '意外事件', s.twist.text),
+  ].join('');
+
+  $('startSceneBtn').disabled = false;
 }
 
 function renderChat() {
-  const s = sceneState.scene;
-  if (!s) return;
-  const html = sceneState.history.map((m) => {
+  const st = sceneState;
+  if (!st.setup) return;
+  const avatar = st.setup.persona.emoji;
+  const html = st.history.map((m) => {
     if (m.role === 'user') {
       return `<div class="msg mine"><div class="bubble">${esc(m.text)}</div></div>`;
     }
+    if (m.twist) {
+      return `<div class="msg twist">
+        <div class="avatar twist-av">${esc(m.emoji || '⚡')}</div>
+        <div>
+          <div class="twist-tag">意外发生</div>
+          <div class="bubble twist-bubble">${esc(m.text)}</div>
+        </div>
+      </div>`;
+    }
     return `<div class="msg">
-      <div class="avatar">${esc(s.avatar)}</div>
+      <div class="avatar">${esc(avatar)}</div>
       <div>
         <div class="bubble">${esc(m.text)}</div>
         ${m.confused ? '<div class="confused">没听懂</div>' : ''}
@@ -362,9 +405,10 @@ function renderChat() {
   $('chat').innerHTML = html;
   $('chat').scrollTop = $('chat').scrollHeight;
 
-  const total = s.steps.length;
+  const total = st.script ? st.script.steps.length : 4;
+  const doneTwist = st.twistDone ? ' twist-done' : '';
   $('stepDots').innerHTML = Array.from({ length: total }, (_, i) =>
-    `<i class="${i < sceneState.step ? 'on' : i === sceneState.step ? 'now' : ''}"></i>`).join('');
+    `<i class="${i < st.step ? 'on' : i === st.step ? 'now' : ''}${i === st.setup.twistAt + 1 ? doneTwist : ''}"></i>`).join('');
 }
 
 function resetPeekBtn() {
@@ -373,42 +417,92 @@ function resetPeekBtn() {
   b.textContent = '看提示（会记一笔）';
 }
 
-function startScene(id) {
-  const s = SCENES.find((x) => x.id === id);
-  if (!s) return;
-  resetPeekBtn();
-  sceneState.scene = s;
-  sceneState.step = 0;
-  sceneState.retry = 0;
-  sceneState.peek = 0;
-  sceneState.best = '';
-  sceneState.t0 = performance.now();
-  sceneState.history = [{ role: 'assistant', text: s.opening }];
+/** 开局：先让 AI 编剧本，再进入对话 */
+async function startScene() {
+  const setup = sceneState.setup;
+  if (!setup) return;
 
-  $('sceneTitle').textContent = `${s.name} · ${s.role}`;
+  if (!cfg.key || !cfg.base || !cfg.model) {
+    alert('请先在「练习」页填全模型服务配置并保存。');
+    return;
+  }
+
+  const btn = $('startSceneBtn');
+  btn.disabled = true;
+  btn.textContent = 'AI 正在编剧本…';
+
+  try {
+    const r = await directScene(setup, currentLevel, cfg);
+    sceneState.script = r.script;
+    sceneState.sourceNote = r.source === 'ai'
+      ? '本局剧本由 AI 现场编写'
+      : `本局剧本来自本地模板（${r.note}）`;
+  } catch (e) {
+    sceneState.script = localDirect(setup, currentLevel);
+    sceneState.sourceNote = '本局剧本来自本地模板';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '开始对话';
+  }
+
+  const st = sceneState;
+  st.step = 0;
+  st.retry = 0;
+  st.peek = 0;
+  st.best = '';
+  st.t0 = performance.now();
+  st.twistFired = false;
+  st.twistDone = false;
+  st.twistHandled = false;
+  st.history = [{ role: 'assistant', text: st.script.opening }];
+
+  const s = setup.scene;
+  $('sceneTitle').textContent = `${s.emoji} ${s.name} · ${s.role}（${setup.persona.name}）`;
+  $('sceneSub').textContent =
+    `${setup.curse.text}　|　${setup.twist.emoji} 第 ${setup.twistAt + 1} 轮有意外`;
+  $('sceneNote').textContent = st.sourceNote;
+
   $('scenePickerCard').hidden = true;
   $('sceneRunCard').hidden = false;
   $('sceneDoneCard').hidden = true;
   $('coachCard').hidden = true;
   $('sceneInput').value = '';
+  resetPeekBtn();
   renderChat();
   $('sceneInput').focus();
 }
 
 function quitScene() {
-  sceneState.scene = null;
+  sceneState.script = null;
   $('scenePickerCard').hidden = false;
   $('sceneRunCard').hidden = true;
   $('sceneDoneCard').hidden = true;
 }
 
-/** 场景对话的专用提示词：AI 同时扮演角色和判断者 */
-function buildSceneSystem(scene, goal, level) {
+/** 触发意外事件：插一句角色的临场反应，后续轮次任务不变但上下文变了 */
+function fireTwist() {
+  const st = sceneState;
+  if (st.twistFired) return;
+  st.twistFired = true;
+  st.history.push({
+    role: 'assistant',
+    text: st.script.twistLine || st.setup.twist.text,
+    twist: true,
+    emoji: st.setup.twist.emoji,
+  });
+}
+
+/** 场景对话提示词：AI 同时扮演角色和判断者 */
+function buildSceneSystem(setup, goal, level, twistNote) {
+  const { scene, persona, curse } = setup;
   return `你在做中文口语陪练，扮演真实场景里的一个角色。
 
-角色：${scene.role}
-场景：${scene.name}
+角色：${scene.role}（${scene.name}）
+性格：${persona.name}——${persona.desc}
+场景走向：${scene.brief}
 学习者水平：HSK ${level}
+学习者本局要遵守的约束：${curse.text}
+${twistNote ? `刚刚发生的意外：${twistNote}\n（角色已经把这句说出口了，学习者现在需要临场应对）\n` : ''}
 当前这一轮，学习者需要完成的任务是：${goal}
 （上面这句是给你的判断依据，绝对不要直接说出来，也不要替学习者完成）
 
@@ -422,21 +516,22 @@ function buildSceneSystem(scene, goal, level) {
 }
 
 规则：
-1. 用角色的口吻说话。不要像老师，不要讲课，不要鼓励式发言。
+1. 用角色的口吻说话，严格贴合「${persona.name}」的性格。不要像老师，不要讲课，不要鼓励式发言。
 2. 判断学习者的话：能不能被角色听懂、能不能完成当前任务。
 3. 听懂且完成了任务 → understood=true, advance=true，角色自然回应并把对话往下推。
 4. 没听懂或没完成任务 → understood=false, advance=false。
    角色要表现出真实反应，比如「啊？」「您说什么？」「不好意思，您是想说……吗？」。
-   不要直接改成老师语气去纠正，那是 issue 字段的事。
-5. issue 和 suggestion 是写给学习者看的中文纠正，各一句话，简洁。
-6. 角色说的话也要匹配 HSK ${level} 的难度，别用太难的词。
-7. 不要虚构事实，不要替学习者编造他没说的内容。`;
+   不要改成老师语气去纠正，那是 issue 字段的事。
+5. 有意外发生时，学习者的应对要能化解麻烦才算完成任务；只是重复原来的话不算。
+6. issue 和 suggestion 是写给学习者看的中文纠正，各一句话，简洁。
+7. 角色说的话要匹配 HSK ${level} 的难度，别用太难的词。
+8. 不要虚构事实，不要替学习者编造他没说的内容。`;
 }
 
 async function sendScene() {
   if (sceneState.busy) return;
-  const s = sceneState.scene;
-  if (!s) return;
+  const st = sceneState;
+  if (!st.script) return;
 
   const text = $('sceneInput').value.trim();
   if (!text) return;
@@ -446,36 +541,40 @@ async function sendScene() {
     return;
   }
 
-  const step = s.steps[sceneState.step];
-  sceneState.history.push({ role: 'user', text });
+  const step = st.script.steps[st.step];
+  const retryBefore = st.retry;
+
+  st.history.push({ role: 'user', text });
   $('sceneInput').value = '';
   $('coachCard').hidden = true;
   renderChat();
 
-  sceneState.busy = true;
+  st.busy = true;
   $('sendSceneBtn').disabled = true;
   $('sendSceneBtn').textContent = '对方在想…';
 
-  // 组装多轮上下文（只带本场景的对话）
-  const messages = [
-    { role: 'system', content: buildSceneSystem(s, step.goal, currentLevel) },
-  ];
-  sceneState.history.slice(-8).forEach((m) => {
+  const twistNote = st.twistFired && !st.twistDone ? st.setup.twist.text : '';
+  const messages = [{ role: 'system', content: buildSceneSystem(st.setup, step.goal, currentLevel, twistNote) }];
+  st.history.filter((m) => !m.twist).slice(-8).forEach((m) => {
     messages.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text });
   });
+  // 意外那一句也要进上下文，否则角色不知道自己刚说了什么
+  if (twistNote) {
+    messages.push({ role: 'assistant', content: st.script.twistLine || st.setup.twist.text });
+  }
 
   try {
     const data = await callAIRaw(messages, cfg);
     const o = data.obj;
 
-    sceneState.history.push({
+    st.history.push({
       role: 'assistant',
       text: o.reply || '……',
       confused: o.understood === false,
     });
 
     if (o.understood === false) {
-      sceneState.retry += 1;
+      st.retry += 1;
       $('coachIssue').textContent = o.issue || '这句话对方没听明白';
       $('coachSuggest').textContent = o.suggestion || '';
       $('coachHint').hidden = true;
@@ -484,45 +583,62 @@ async function sendScene() {
       $('peekBtn').hidden = !step.tip;
       $('coachCard').hidden = false;
     } else {
-      sceneState.best = text;
+      st.best = text;
+      if (st.twistFired && !st.twistDone) {
+        st.twistDone = true;
+        st.twistHandled = st.retry === retryBefore;
+      }
       if (o.advance !== false) {
-        sceneState.step += 1;
-        if (sceneState.step >= s.steps.length) {
+        st.step += 1;
+        if (st.step >= st.script.steps.length) {
           renderChat();
           finishScene();
           return;
         }
+        // 完成第 twistAt 轮后，意外登场
+        if (st.step === st.setup.twistAt) fireTwist();
       }
     }
     renderChat();
   } catch (e) {
-    sceneState.history.push({ role: 'assistant', text: `（出错了：${e.message}）` });
+    st.history.push({ role: 'assistant', text: `（出错了：${e.message}）` });
     renderChat();
   } finally {
-    sceneState.busy = false;
+    st.busy = false;
     $('sendSceneBtn').disabled = false;
     $('sendSceneBtn').textContent = '发送';
   }
 }
 
 function finishScene() {
-  const s = sceneState.scene;
-  const ms = performance.now() - sceneState.t0;
+  const st = sceneState;
+  const s = st.setup.scene;
+  const ms = performance.now() - st.t0;
 
   $('doneSummary').textContent =
-    `「${s.name}」${s.steps.length} 轮全部完成。没说清 ${sceneState.retry} 次，看提示 ${sceneState.peek} 次，用时 ${fmtDuration(ms)}。`;
+    `「${s.name}」4 轮全部完成。没说清 ${st.retry} 次，看提示 ${st.peek} 次，用时 ${fmtDuration(ms)}。` +
+    (st.twistFired
+      ? `意外「${st.setup.twist.name || ''}」${st.twistHandled ? '一次化解' : '绕了几圈才过去'}。`
+      : '');
 
   const cv = $('scoreCanvas');
   const ctx = cv.getContext('2d');
   drawScoreCard(ctx, {
     sceneName: s.name,
+    sceneEmoji: s.emoji,
     role: s.role,
-    done: s.steps.length,
-    total: s.steps.length,
-    retry: sceneState.retry,
-    peek: sceneState.peek,
+    persona: st.setup.persona.name,
+    curse: st.setup.curse.text,
+    twist: st.setup.twist.text,
+    twistEmoji: st.setup.twist.emoji,
+    twistHandled: st.twistHandled,
+    twistFired: st.twistFired,
+    done: st.script.steps.length,
+    total: st.script.steps.length,
+    retry: st.retry,
+    peek: st.peek,
     ms,
-    best: sceneState.best,
+    best: st.best,
     model: cfg.model,
   });
 
@@ -533,7 +649,7 @@ function finishScene() {
 function downloadCard() {
   const cv = $('scoreCanvas');
   const a = document.createElement('a');
-  a.download = `hsk-成绩卡-${sceneState.scene?.id || 'scene'}-${Date.now()}.png`;
+  a.download = `hsk-成绩卡-${sceneState.setup?.scene.id || 'scene'}-${Date.now()}.png`;
   a.href = cv.toDataURL('image/png');
   a.click();
 }
@@ -748,21 +864,20 @@ $('exportBtn').addEventListener('click', exportCSV);
 
 /* ---- 场景 ---- */
 
-$('sceneGrid').addEventListener('click', (e) => {
-  const tile = e.target.closest('.scene-tile');
-  if (!tile) return;
-  document.querySelectorAll('.scene-tile').forEach((t) => t.classList.remove('is-active'));
-  tile.classList.add('is-active');
-  $('startSceneBtn').disabled = false;
-  $('startSceneBtn').dataset.pick = tile.dataset.id;
+$('sceneCatRow').addEventListener('click', (e) => {
+  const chip = e.target.closest('.cat-chip');
+  if (!chip) return;
+  document.querySelectorAll('.cat-chip').forEach((x) => x.classList.remove('is-active'));
+  chip.classList.add('is-active');
+  currentCat = chip.dataset.cat;
+  reroll();
 });
 
-$('startSceneBtn').addEventListener('click', () => {
-  startScene($('startSceneBtn').dataset.pick);
-});
+$('rerollBtn').addEventListener('click', reroll);
+$('startSceneBtn').addEventListener('click', startScene);
 $('quitSceneBtn').addEventListener('click', quitScene);
 $('restartSceneBtn').addEventListener('click', () => {
-  if (sceneState.scene) startScene(sceneState.scene.id);
+  if (sceneState.setup) startScene();
 });
 $('sendSceneBtn').addEventListener('click', sendScene);
 $('sceneInput').addEventListener('keydown', (e) => {
@@ -787,7 +902,8 @@ $('backToScenesBtn').addEventListener('click', quitScene);
     .join('');
   refreshSettingsUI();
   renderTable();
-  renderSceneGrid();
+  renderCatRow();
+  reroll();
   $('sceneLevelNote').textContent =
-    `对话难度跟随你在「练习」页选的 HSK ${currentLevel}；改等级后再开新场景才生效。`;
+    `对话难度跟随你在「练习」页选的 HSK ${currentLevel}；改等级后重开一局才生效。`;
 })();
