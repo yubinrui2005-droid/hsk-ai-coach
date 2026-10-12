@@ -1,0 +1,46 @@
+<!-- 设置页 / Settings Page -->
+<view class="container">
+  <!-- 语言设置 / Language Setting -->
+  <view class="section">
+    <view class="section-title">Language / 语言</view>
+    <view class="option-row">
+      <view
+        class="lang-option {{currentLang === 'en' ? 'active' : ''}}"
+        data-lang="en"
+        bindtap="switchLanguage"
+      >
+        <text class="lang-flag">🇺🇸</text>
+        <text class="lang-name">English</text>
+        <text class="lang-check" wx:if="{{currentLang === 'en'}}">✓</text>
+      </view>
+      <view
+        class="lang-option {{currentLang === 'zh' ? 'active' : ''}}"
+        data-lang="zh"
+        bindtap="switchLanguage"
+      >
+        <text class="lang-flag">🇨🇳</text>
+        <text class="lang-name">中文</text>
+        <text class="lang-check" wx:if="{{currentLang === 'zh'}}">✓</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 每组词数 / Group Size -->
+  <view class="section">
+    <view class="section-title">Words per Group / 每组词数</view>
+    <view class="option-row">
+      <view
+        wx:for="{{groupSizes}}"
+        wx:key="*this"
+        class="size-option {{groupSize === item ? 'active' : ''}}"
+        data-size="{{item}}"
+        bindtap="onGroupSizeChange"
+      >
+        {{item}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 返回按钮 / Back Button -->
+  <button class="btn-secondary" bindtap="backToHome">Back to Home</button>
+</view>

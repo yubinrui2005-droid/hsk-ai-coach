@@ -1,0 +1,37 @@
+# ===== 依赖 / 构建产物 =====
+# 注意：本项目 miniprogram/node_modules 目前【故意提交】
+# 原因：项目内没有 package.json，依赖无法通过 npm 还原；
+#      体积仅 1.2MB / 141 个文件，为保证可运行性保留。
+# 后续如果补上 package.json，可再把它挪到忽略列表。
+# miniprogram/node_modules/
+
+# 未来网页项目（Vite/React 等）的依赖与产物
+node_modules/
+dist/
+build/
+.vite/
+.next/
+
+# ===== 密钥与环境变量（绝对不能提交）=====
+.env
+.env.*
+!.env.example
+
+# ===== 微信开发者工具 =====
+project.private.config.json
+*.wxproj
+
+# ===== 系统 / 编辑器 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# ===== 临时文件 =====
+tmp/
+*.log
+npm-debug.log*
+*.tmp
+*.bak

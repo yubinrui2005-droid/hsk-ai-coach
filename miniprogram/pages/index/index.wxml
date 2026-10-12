@@ -1,0 +1,83 @@
+<!-- 首页 / Home Page -->
+<view class="container">
+  <view class="header">
+    <view class="logo">🏝️</view>
+    <view class="title">HSK Island</view>
+    <view class="subtitle">{{langText.wordsAvail}}</view>
+  </view>
+
+  <!-- HSK 等级选择 / HSK Level Selector -->
+  <view class="picker-section">
+    <view class="picker-label" bindtap="toggleLevelPicker">
+      <text>{{langText.levelLabel}}: {{langText.levelValue}}</text>
+      <text class="arrow">{{showLevelPicker ? '▲' : '▼'}}</text>
+    </view>
+    <view class="picker-options {{showLevelPicker ? 'show' : ''}}">
+      <view
+        wx:for="{{hskLevels}}"
+        wx:key="value"
+        class="picker-option {{selectedLevel === item.value ? 'active' : ''}}"
+        data-level="{{item.value}}"
+        bindtap="onLevelChange"
+      >
+        {{item.label}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 组数选择 / Group Size Selector -->
+  <view class="picker-section">
+    <view class="picker-label" bindtap="toggleGroupPicker">
+      <text>{{langText.groupLabel}}: {{groupSize}}</text>
+      <text class="arrow">{{showGroupPicker ? '▲' : '▼'}}</text>
+    </view>
+    <view class="picker-options {{showGroupPicker ? 'show' : ''}}">
+      <view
+        wx:for="{{groupSizes}}"
+        wx:key="*this"
+        class="picker-option {{groupSize === item ? 'active' : ''}}"
+        data-size="{{item}}"
+        bindtap="onGroupSizeChange"
+      >
+        {{item}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 主要按钮 / Main Buttons -->
+  <view class="buttons">
+    <button class="btn-primary study-btn" bindtap="startStudy">
+      <text class="btn-icon">📖</text>
+      <text class="btn-text">{{langText.studyText}}</text>
+      <text class="btn-desc">{{langText.studyDesc}}</text>
+    </button>
+
+    <button class="btn-primary mistake-btn" bindtap="openMistakeReview">
+      <text class="btn-icon">🎯</text>
+      <text class="btn-text">{{langText.mistakeReviewText}}</text>
+      <text class="btn-desc">{{langText.mistakeReviewDesc}}</text>
+    </button>
+
+    <button class="btn-primary review-btn" bindtap="startReview">
+      <text class="btn-icon">🔄</text>
+      <text class="btn-text">{{langText.reviewText}}</text>
+      <text class="btn-desc">{{langText.reviewDesc}}</text>
+    </button>
+
+    <!-- 添加词汇和管理词汇已隐藏，需要时取消注释即可 -->
+    <!-- <button class="btn-primary add-word-btn" bindtap="openAddWord">
+      <text class="btn-icon">➕</text>
+      <text class="btn-text">{{langText.addWordText}}</text>
+    </button>
+
+    <button class="btn-primary manage-btn" bindtap="openManage">
+      <text class="btn-icon">📋</text>
+      <text class="btn-text">{{langText.manageText}}</text>
+    </button> -->
+  </view>
+
+  <!-- 设置按钮 / Settings Button -->
+  <view class="settings-link" bindtap="openSettings">
+    <text>⚙️ {{langText.settingsText}}</text>
+  </view>
+</view>

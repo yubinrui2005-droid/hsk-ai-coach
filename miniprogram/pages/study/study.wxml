@@ -1,0 +1,63 @@
+<view class="container">
+  <block wx:if="{{!isCompleted}}">
+    <view class="top-bar" wx:if="{{isMistakeMode}}">
+      <text class="clear-mistakes-btn" bindtap="clearAllMistakes">{{langText.clearMistakes}}</text>
+    </view>
+
+    <view class="progress-bar">
+      <view class="progress-fill" style="width: {{progressPercent}}%"></view>
+    </view>
+    <view class="progress-text">{{progressText}}</view>
+
+    <view class="word-card">
+      <view class="chinese-word">{{currentWord.word}}</view>
+      <view class="pinyin">{{currentWord.pinyin}}</view>
+      <view class="sentence" wx:if="{{currentWord.sentence}}">{{currentWord.sentence}}</view>
+      <view class="pos-text" wx:if="{{currentWord.pos}}">{{currentWord.pos}}</view>
+    </view>
+
+    <view class="hint">{{langText.chooseMeaning}}</view>
+
+    <view class="options-list">
+      <view
+        wx:for="{{options}}"
+        wx:key="letter"
+        class="option {{item.state}}"
+        data-index="{{index}}"
+        bindtap="selectAnswer"
+      >
+        <text class="option-letter">{{item.letter}}</text>
+        <text class="option-text">{{item.text}}</text>
+      </view>
+    </view>
+
+    <view class="feedback correct-feedback" wx:if="{{isCorrect}}">
+      <text>{{langText.correctLabel}}</text>
+    </view>
+  </block>
+
+  <block wx:if="{{isCompleted}}">
+    <view class="result-card">
+      <view class="result-title">{{langText.completed}}</view>
+      <view class="result-subtitle">{{resultSummary}}</view>
+
+      <view class="result-stats" wx:if="{{totalQuestions > 0}}">
+        <view class="stat-item">
+          <view class="stat-value correct">{{correctCount}}</view>
+          <view class="stat-label">{{langText.correctLabel}}</view>
+        </view>
+        <view class="stat-item">
+          <view class="stat-value wrong">{{wrongCount}}</view>
+          <view class="stat-label">{{langText.wrongLabel}}</view>
+        </view>
+        <view class="stat-item">
+          <view class="stat-value">{{accuracy}}%</view>
+          <view class="stat-label">{{langText.accuracy}}</view>
+        </view>
+      </view>
+
+      <button class="btn-primary" bindtap="studyAgain">{{langText.studyAgain}}</button>
+      <button class="btn-secondary" bindtap="backToHome">{{langText.backToHome}}</button>
+    </view>
+  </block>
+</view>

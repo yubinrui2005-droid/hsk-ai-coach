@@ -1,0 +1,195 @@
+/* 复习页样式 / Review Page Styles */
+
+.container {
+  padding: 20px;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* 等级选择器 + 清空按钮 / Level Picker + Clear Button */
+.top-bar-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.clear-btn {
+  margin-left: 12px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 10px;
+  font-size: 18px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+
+.picker-section {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0;
+    position: relative;
+  }
+
+.picker-label {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: #fff;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #4A90D9;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+
+.picker-options {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 42px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  z-index: 10;
+  overflow: hidden;
+  min-width: 120px;
+}
+
+.picker-options.show {
+  display: block;
+}
+
+.picker-option {
+  padding: 12px 20px;
+  font-size: 14px;
+  color: #555;
+  text-align: center;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.picker-option:last-child {
+  border-bottom: none;
+}
+
+.picker-option.active {
+  background: #4A90D9;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* 顶部 / Top Bar */
+.top-bar {
+  margin-bottom: 16px;
+}
+
+.word-count {
+  font-size: 14px;
+  color: #888;
+  text-align: center;
+}
+
+/* 词汇列表 / Word List */
+.word-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.word-card + .word-card {
+  margin-top: 10px;
+}
+
+.word-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: all 0.2s;
+}
+
+.word-card:active {
+  opacity: 0.8;
+}
+
+.card-front {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-word {
+  font-size: 22px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.card-arrow {
+  font-size: 12px;
+  color: #bbb;
+}
+
+/* 展开内容 / Expanded Content */
+.card-back {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.card-pinyin {
+  font-size: 16px;
+  color: #888;
+  font-style: italic;
+  margin-bottom: 6px;
+}
+
+.card-sentence {
+  font-size: 14px;
+  color: #aaa;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.card-pos {
+  font-size: 13px;
+  color: #4A90D9;
+  margin-bottom: 6px;
+  font-style: italic;
+}
+
+.card-answer {
+  font-size: 18px;
+  color: #4A90D9;
+  font-weight: 500;
+}
+
+/* 空状态 / Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-text {
+  font-size: 18px;
+  color: #999;
+  margin-bottom: 8px;
+}
+
+.empty-hint {
+  font-size: 13px;
+  color: #bbb;
+}
+
+.btn-secondary {
+  width: 100%;
+  margin-top: 24px;
+}

@@ -1,0 +1,61 @@
+<view class="container">
+  <view class="picker-section">
+    <view class="picker-label" bindtap="toggleLevelPicker">
+      <text>{{langText.levelLabel}}: {{langText.levelValue}}</text>
+      <text class="arrow">{{showLevelPicker ? '▲' : '▼'}}</text>
+    </view>
+    <view class="picker-options {{showLevelPicker ? 'show' : ''}}">
+      <view
+        wx:for="{{hskLevels}}"
+        wx:key="value"
+        class="picker-option {{selectedLevel === item.value ? 'active' : ''}}"
+        data-level="{{item.value}}"
+        bindtap="onLevelChange"
+      >{{item.label}}</view>
+    </view>
+  </view>
+
+  <view class="stats">{{langText.totalWords}}</view>
+
+  <view class="add-bar" wx:if="{{!isEditing}}">
+    <button class="add-btn" bindtap="startAdd">{{langText.addBtn}}</button>
+    <button class="export-btn" bindtap="exportWords">{{langText.exportBtn}}</button>
+  </view>
+
+  <view class="word-list" wx:if="{{!isEditing}}">
+    <view wx:for="{{allWords}}" wx:key="_id" class="word-row">
+      <view class="word-main">
+        <view class="word-info">
+          <view class="word-text">{{item.word}}<text class="word-pinyin">{{item.pinyin}}</text></view>
+          <view class="word-sentence" wx:if="{{item.sentence}}">{{item.sentence}}</view>
+          <view class="word-pos" wx:if="{{item.pos}}">{{item.pos}}</view>
+          <view class="word-answer">{{item.answer}}</view>
+        </view>
+        <view class="word-meta">
+          <view class="level-badge">HSK 1-3</view>
+          <view class="word-actions">
+            <view class="action-btn" data-id="{{item._id}}" bindtap="startEdit">{{langText.editBtn}}</view>
+            <view class="action-btn" data-id="{{item._id}}" bindtap="deleteWord">{{langText.deleteBtn}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="word-row edit-form" wx:if="{{isEditing}}">
+    <input class="form-input" placeholder="{{langText.wordLabel}}" value="{{formWord}}" bindinput="onFormWord" />
+    <input class="form-input" placeholder="{{langText.pinyinLabel}}" value="{{formPinyin}}" bindinput="onFormPinyin" />
+    <input class="form-input" placeholder="{{langText.sentenceLabel}}" value="{{formSentence}}" bindinput="onFormSentence" />
+    <input class="form-input" placeholder="{{langText.posLabel}}" value="{{formPos}}" bindinput="onFormPos" />
+    <input class="form-input answer-input" placeholder="{{langText.answerLabel}}" value="{{formAnswer}}" bindinput="onFormAnswer" />
+    <input class="form-input" placeholder="Distractor 1" value="{{formD2}}" bindinput="onFormD2" />
+    <input class="form-input" placeholder="Distractor 2" value="{{formD3}}" bindinput="onFormD3" />
+    <input class="form-input" placeholder="Distractor 3" value="{{formD4}}" bindinput="onFormD4" />
+    <view class="form-actions">
+      <button class="form-save" bindtap="saveWord">{{langText.saveBtn}}</button>
+      <button class="form-cancel" bindtap="cancelEdit">{{langText.cancelBtn}}</button>
+    </view>
+  </view>
+
+  <view class="back-link" bindtap="backToHome">{{langText.backToHome}}</view>
+</view>

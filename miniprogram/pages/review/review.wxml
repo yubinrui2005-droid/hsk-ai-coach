@@ -1,0 +1,60 @@
+<!-- 预览页 / Preview Page -->
+<view class="container">
+  <!-- 等级选择器 + 清空按钮 / Level Selector + Clear Button -->
+  <view class="top-bar-row">
+    <view class="picker-section">
+      <view class="picker-label" bindtap="toggleLevelPicker">
+        <text>{{showLevelPicker ? '▲' : '▼'}}</text>
+      </view>
+      <view class="picker-options {{showLevelPicker ? 'show' : ''}}">
+        <view
+          wx:for="{{levels}}"
+          wx:key="value"
+          class="picker-option {{selectedLevel === item.value ? 'active' : ''}}"
+          data-level="{{item.value}}"
+          bindtap="onLevelChange"
+        >
+          {{item.label}}
+        </view>
+      </view>
+    </view>
+    <view class="clear-btn" bindtap="onClearLearned">🔄</view>
+  </view>
+
+  <!-- 顶部统计 / Top Stats -->
+  <view class="top-bar">
+    <view class="word-count">{{totalCount}} words</view>
+  </view>
+
+  <!-- 词汇列表 / Vocabulary List -->
+  <view class="word-list">
+    <view 
+      wx:for="{{words}}" 
+      wx:key="id"
+      class="word-card {{expandedId === item.id ? 'expanded' : ''}}"
+      data-id="{{item.id}}"
+      bindtap="toggleCard"
+    >
+      <view class="card-front">
+        <text class="card-word">{{item.word}}</text>
+        <text class="card-arrow">{{expandedId === item.id ? '▲' : '▼'}}</text>
+      </view>
+      <view class="card-back" wx:if="{{expandedId === item.id}}">
+        <view class="card-pinyin">{{item.pinyin}}</view>
+        <view class="card-sentence" wx:if="{{item.sentence}}">{{item.sentence}}</view>
+        <view class="card-pos" wx:if="{{item.pos}}">{{item.pos}}</view>
+        <view class="card-answer">{{item.answer}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 / Empty State -->
+  <view class="empty-state" wx:if="{{totalCount === 0}}">
+    <text class="empty-icon">📭</text>
+    <text class="empty-text">No vocabulary yet</text>
+    <text class="empty-hint">Add words in data/vocabulary.js</text>
+  </view>
+
+  <!-- 返回按钮 / Back Button -->
+  <button class="btn-secondary" bindtap="backToHome">Back to Home</button>
+</view>

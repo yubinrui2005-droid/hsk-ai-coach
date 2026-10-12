@@ -1,0 +1,101 @@
+/* 设置页样式 / Settings Page Styles */
+
+.container {
+  padding: 20px;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* 分区 / Section */
+.section {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #888;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 语言选项 / Language Options */
+.option-row {
+  display: flex;
+}
+
+.lang-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  border-radius: 12px;
+  border: 2px solid #e8e8e8;
+  background: #fafafa;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.lang-option + .lang-option {
+  margin-left: 12px;
+}
+
+.lang-option.active {
+  border-color: #4A90D9;
+  background: #f0f6ff;
+}
+
+.lang-flag {
+  font-size: 20px;
+  margin-right: 8px;
+}
+
+.lang-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+.lang-check {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 14px;
+  color: #4A90D9;
+  font-weight: 700;
+}
+
+/* 组数选项 / Size Options */
+.size-option {
+  flex: 1;
+  text-align: center;
+  padding: 14px;
+  border-radius: 12px;
+  border: 2px solid #e8e8e8;
+  background: #fafafa;
+  font-size: 18px;
+  font-weight: 600;
+  color: #555;
+  transition: all 0.2s;
+}
+
+.size-option + .size-option {
+  margin-left: 12px;
+}
+
+.size-option.active {
+  border-color: #4A90D9;
+  background: #4A90D9;
+  color: #fff;
+}
+
+.btn-secondary {
+  width: 100%;
+  margin-top: 10px;
+}

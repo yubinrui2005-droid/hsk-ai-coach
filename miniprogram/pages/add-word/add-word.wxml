@@ -1,0 +1,90 @@
+<view class="container">
+  <view class="picker-section">
+    <view class="picker-label" bindtap="toggleLevelPicker">
+      <text>{{langText.levelLabel}}: {{langText.levelValue}}</text>
+      <text class="arrow">{{showLevelPicker ? '▲' : '▼'}}</text>
+    </view>
+    <view class="picker-options {{showLevelPicker ? 'show' : ''}}">
+      <view
+        wx:for="{{hskLevels}}"
+        wx:key="value"
+        class="picker-option {{selectedLevel === item.value ? 'active' : ''}}"
+        data-level="{{item.value}}"
+        bindtap="onLevelChange"
+      >{{item.label}}</view>
+    </view>
+  </view>
+
+  <view class="form-section">
+    <view class="section-title">{{langText.pageTitle}}</view>
+
+    <view class="input-group">
+      <input class="input" placeholder="{{langText.wordPlaceholder}}" value="{{word}}" bindinput="onWordInput" />
+    </view>
+
+    <view class="input-group">
+      <input class="input" placeholder="{{langText.pinyinPlaceholder}}" value="{{pinyin}}" bindinput="onPinyinInput" />
+    </view>
+
+    <view class="input-group">
+      <input class="input" placeholder="{{langText.sentencePlaceholder}}" value="{{sentence}}" bindinput="onSentenceInput" />
+    </view>
+
+    <view class="input-group">
+      <input class="input" placeholder="{{langText.posPlaceholder}}" value="{{pos}}" bindinput="onPosInput" />
+    </view>
+
+    <view class="options-label">{{langText.optionPlaceholder}}</view>
+
+    <view class="option-row {{correctIndex === 0 ? 'selected' : ''}}" bindtap="selectCorrect" data-index="0">
+      <view class="radio {{correctIndex === 0 ? 'checked' : ''}}">{{correctIndex === 0 ? '✓' : ''}}</view>
+      <input class="input option-input {{correctIndex === 0 ? 'answer-input' : ''}}" placeholder="Option 1" value="{{option1}}" bindinput="onOption1Input" />
+    </view>
+
+    <view class="option-row {{correctIndex === 1 ? 'selected' : ''}}" bindtap="selectCorrect" data-index="1">
+      <view class="radio {{correctIndex === 1 ? 'checked' : ''}}">{{correctIndex === 1 ? '✓' : ''}}</view>
+      <input class="input option-input {{correctIndex === 1 ? 'answer-input' : ''}}" placeholder="Option 2" value="{{option2}}" bindinput="onOption2Input" />
+    </view>
+
+    <view class="option-row {{correctIndex === 2 ? 'selected' : ''}}" bindtap="selectCorrect" data-index="2">
+      <view class="radio {{correctIndex === 2 ? 'checked' : ''}}">{{correctIndex === 2 ? '✓' : ''}}</view>
+      <input class="input option-input {{correctIndex === 2 ? 'answer-input' : ''}}" placeholder="Option 3" value="{{option3}}" bindinput="onOption3Input" />
+    </view>
+
+    <view class="option-row {{correctIndex === 3 ? 'selected' : ''}}" bindtap="selectCorrect" data-index="3">
+      <view class="radio {{correctIndex === 3 ? 'checked' : ''}}">{{correctIndex === 3 ? '✓' : ''}}</view>
+      <input class="input option-input {{correctIndex === 3 ? 'answer-input' : ''}}" placeholder="Option 4" value="{{option4}}" bindinput="onOption4Input" />
+    </view>
+
+    <button class="submit-btn" bindtap="submitWord">{{langText.submitText}}</button>
+  </view>
+
+  <view class="list-section" wx:if="{{customWords.length > 0}}">
+    <view class="section-title">{{langText.myWords}} ({{customWords.length}})</view>
+    <view class="word-list">
+      <view
+        wx:for="{{customWords}}"
+        wx:key="index"
+        class="word-item"
+      >
+        <view class="word-info">
+          <view class="word-main">{{item.word}} <text class="word-pinyin">{{item.pinyin}}</text></view>
+          <view class="word-sentence" wx:if="{{item.sentence}}">{{item.sentence}}</view>
+          <view class="word-pos" wx:if="{{item.pos}}">{{item.pos}}</view>
+          <view class="word-answer">{{item.answer}}</view>
+        </view>
+        <view
+          class="delete-btn"
+          data-index="{{index}}"
+          bindtap="deleteWord"
+        >{{langText.deleteText}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-hint" wx:if="{{customWords.length === 0}}">
+    {{langText.noWords}}
+  </view>
+
+  <view class="back-link" bindtap="backToHome">{{langText.backToHome}}</view>
+</view>
