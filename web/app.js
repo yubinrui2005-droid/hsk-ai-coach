@@ -1,11 +1,35 @@
-/* HSK AI 中文陪练 · MVP v0.1
- * 纯前端，无构建步骤。DeepSeek OpenAI 兼容接口。
+/* HSK AI 中文陪练 · MVP v0.2
+ * 纯前端，无构建步骤。支持任意 OpenAI 兼容接口（官方 / 中转站 / 本地模型）。
  * 注意：API Key 只存在用户浏览器 localStorage，代码仓库中不含任何密钥。
  */
 
-const API_URL = 'https://api.deepseek.com/chat/completions';
-const MODEL = 'deepseek-v4-flash';
-const KEY_STORE = 'hsk_coach_deepseek_key';
+const CFG_STORE = 'hsk_coach_provider_cfg';
+
+const DEFAULT_CFG = {
+  providerId: 'deepseek',
+  base: PROVIDERS[0].base,
+  model: PROVIDERS[0].model,
+  key: '',
+  strictJson: true,
+};
+
+/* ---------------- 配置存取 ---------------- */
+
+function loadCfg() {
+  try {
+    const raw = localStorage.getItem(CFG_STORE);
+    if (!raw) return { ...DEFAULT_CFG };
+    return { ...DEFAULT_CFG, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_CFG };
+  }
+}
+
+function saveCfg(c) {
+  localStorage.setItem(CFG_STORE, JSON.stringify(c));
+}
+
+let cfg = loadCfg();
 
 /* ---------------- 提示词 ---------------- */
 
@@ -52,9 +76,6 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-function getKey() { return localStorage.getItem(KEY_STORE) || ''; }
-function setKey(v) { v ? localStorage.setItem(KEY_STORE, v) : localStorage.removeItem(KEY_STORE); }
-
 /** 从模型返回中剥离可能的 ```json 代码块后解析 */
 function parseJSON(text) {
   let s = String(text).trim();
@@ -80,50 +101,162 @@ function validateShape(obj) {
   return errs;
 }
 
-async function callAI(sentence, level, key) {
-  const payload = {
-    model: MODEL,
-    messages: [
-      { role: 'system', content: buildSystemPrompt(level) },
-      { role: 'user', content: buildUserPrompt(sentence, level) },
-    ],
-    response_format: { type: 'json_object' },
-    temperature: 0,
-    stream: false,
+/** 判断错误是否属于「不支持 response_format」，用于自动降级 */
+function isFormatUnsupported(msg) {
+  return /response_format|json_object|json_schema|unsupported|not support|不支持/i.test(String(msg));
+}
+
+/**
+ * 调用模型。strictJson 开启时先带 response_format 请求，
+ * 若服务端不支持则自动去掉该参数重试一次。
+ */
+async function callAI(sentence, level, options = {}) {
+  const c = options.cfg || cfg;
+  const endpoint = buildEndpoint(c.base);
+
+  if (!c.key) throw new Error('未设置 API Key');
+  if (!endpoint) throw new Error('未设置 Base URL');
+  if (!c.model) throw new Error('未设置模型名称');
+
+  const messages = [
+    { role: 'system', content: buildSystemPrompt(level) },
+    { role: 'user', content: buildUserPrompt(sentence, level) },
+  ];
+
+  const send = async (strict) => {
+    const payload = {
+      model: c.model,
+      messages,
+      temperature: 0,
+      stream: false,
+    };
+    if (strict) payload.response_format = { type: 'json_object' };
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${c.key}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      let detail = '';
+      try { detail = JSON.stringify(await res.json()); } catch { detail = await res.text(); }
+      throw new Error(`HTTP ${res.status} — ${detail.slice(0, 300)}`);
+    }
+    return res.json();
   };
 
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    let detail = '';
-    try { detail = JSON.stringify(await res.json()); } catch { detail = await res.text(); }
-    throw new Error(`HTTP ${res.status} — ${detail.slice(0, 300)}`);
+  let data;
+  try {
+    data = await send(c.strictJson);
+  } catch (e) {
+    // 仅在开启严格模式、且报错看起来是「不支持 response_format」时降级重试
+    if (c.strictJson && isFormatUnsupported(e.message)) {
+      data = await send(false);
+    } else {
+      throw e;
+    }
   }
 
-  const data = await res.json();
   const raw = data?.choices?.[0]?.message?.content ?? '';
-  const usage = data?.usage || {};
-  return { raw, obj: parseJSON(raw), usage };
+  return { raw, obj: parseJSON(raw), usage: data?.usage || {}, endpoint };
+}
+
+/* ---------------- 设置区 ---------------- */
+
+function refreshSettingsUI() {
+  const c = cfg;
+
+  // 当前 Base URL 若与某个预设一致，就显示为那个预设
+  const matched = PROVIDERS.find((p) => p.id !== 'custom' && p.base === c.base);
+  $('providerSel').value = matched ? matched.id : (c.base ? 'custom' : 'deepseek');
+
+  $('baseUrl').value = c.base;
+  $('modelName').value = c.model;
+  $('apiKey').value = '';
+  $('apiKey').placeholder = c.key ? '已保存，留空则不修改' : 'sk-...（只存在本机）';
+  $('strictJson').checked = !!c.strictJson;
+
+  const p = PROVIDERS.find((x) => x.id === $('providerSel').value);
+  $('providerNote').textContent = p ? `${p.note}${p.doc ? ' · ' + p.doc : ''}` : '';
+
+  const ok = !!(c.key && c.base && c.model);
+  $('cfgStatus').textContent = ok ? '配置已就绪' : '配置不完整';
+  $('cfgStatus').className = 'badge' + (ok ? ' is-ok' : '');
+  $('endpointPreview').textContent = buildEndpoint(c.base) || '—';
+}
+
+function readFormCfg() {
+  return {
+    providerId: $('providerSel').value,
+    base: $('baseUrl').value.trim(),
+    model: $('modelName').value.trim(),
+    key: $('apiKey').value.trim() || cfg.key,
+    strictJson: $('strictJson').checked,
+  };
+}
+
+async function testConnection() {
+  const c = readFormCfg();
+  const btn = $('testConnBtn');
+  if (!c.key || !c.base || !c.model) {
+    setConnResult('请先填全 Base URL、模型名称和 API Key', false);
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '测试中…';
+  setConnResult('正在发送最小请求…', null);
+
+  const endpoint = buildEndpoint(c.base);
+  const t0 = performance.now();
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${c.key}`,
+      },
+      body: JSON.stringify({
+        model: c.model,
+        messages: [{ role: 'user', content: 'hi' }],
+        max_tokens: 1,
+        stream: false,
+      }),
+    });
+    const ms = Math.round(performance.now() - t0);
+    if (!res.ok) {
+      let d = '';
+      try { d = JSON.stringify(await res.json()); } catch { d = await res.text(); }
+      setConnResult(`✗ HTTP ${res.status}（${ms} ms）— ${d.slice(0, 260)}`, false);
+    } else {
+      const j = await res.json();
+      const got = j?.choices?.[0]?.message?.content;
+      setConnResult(
+        `✓ 连通（${ms} ms）· 实际模型 ${j?.model || c.model} · 返回片段 ${JSON.stringify(got ?? '').slice(0, 60)}`,
+        true
+      );
+    }
+  } catch (e) {
+    setConnResult(`✗ 请求失败 — ${e.message}`, false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '测试连接';
+  }
+}
+
+function setConnResult(text, ok) {
+  const el = $('connResult');
+  el.hidden = false;
+  el.textContent = text;
+  el.className = 'conn-result ' + (ok === null ? '' : ok ? ' is-ok' : 'is-bad');
 }
 
 /* ---------------- 练习页 ---------------- */
 
 let currentLevel = '1-2';
-
-function refreshKeyUI() {
-  const has = !!getKey();
-  $('keyStatus').textContent = has ? '已设置（仅本机）' : '未设置';
-  $('keyStatus').className = 'badge' + (has ? ' is-ok' : '');
-  $('apiKey').value = '';
-  $('apiKey').placeholder = has ? '已保存，如需更换请重新输入' : 'sk-...';
-}
 
 function showResult(data, sentence, elapsed) {
   const o = data.obj;
@@ -142,7 +275,7 @@ function showResult(data, sentence, elapsed) {
   const tk = data.usage.prompt_tokens != null
     ? `${data.usage.prompt_tokens}in / ${data.usage.completion_tokens}out tokens`
     : '';
-  $('runMeta').textContent = `${elapsed} ms · ${tk}`;
+  $('runMeta').textContent = `${elapsed} ms · ${tk} · ${cfg.model}`;
 
   $('rvOriginal').textContent = sentence;
   $('rvProblem').textContent = o.problem || '—';
@@ -150,13 +283,9 @@ function showResult(data, sentence, elapsed) {
   $('rvExplain').textContent = o.explanation || '—';
   $('rvTip').textContent = o.tip || '—';
   $('rvKeywords').textContent = Array.isArray(o.keywords) ? o.keywords.join('、') : '—';
-  $('rvRaw').textContent = data.raw;
 
   const errs = validateShape(o);
-  $('kwBlock').style.display = 'block';
-  if (errs.length) {
-    $('rvRaw').textContent += `\n\n[结构校验未通过] ${errs.join('；')}`;
-  }
+  $('rvRaw').textContent = data.raw + (errs.length ? `\n\n[结构校验未通过] ${errs.join('；')}` : '');
 
   $('resultCard').hidden = false;
   $('errorCard').hidden = true;
@@ -169,10 +298,8 @@ function showError(e) {
 }
 
 async function checkOne() {
-  const key = getKey();
-  if (!key) {
-    showError(new Error('请先在上方填入 DeepSeek API Key。'));
-    $('apiKey').focus();
+  if (!cfg.key || !cfg.base || !cfg.model) {
+    showError(new Error('请先在上方填全 Base URL、模型名称和 API Key，再点「保存配置」。'));
     return;
   }
   const sentence = $('sentence').value.trim();
@@ -187,7 +314,7 @@ async function checkOne() {
 
   const t0 = performance.now();
   try {
-    const data = await callAI(sentence, currentLevel, key);
+    const data = await callAI(sentence, currentLevel);
     showResult(data, sentence, Math.round(performance.now() - t0));
   } catch (e) {
     showError(e);
@@ -216,7 +343,7 @@ function renderTable() {
   $('testBody').innerHTML = TEST_CASES.map((c) => {
     const r = results[c.id];
     const struct = !r ? '<span class="pill p-idle">未运行</span>'
-      : r.error ? `<span class="pill p-fail">请求失败</span>`
+      : r.error ? '<span class="pill p-fail">请求失败</span>'
       : r.shapeErrs.length ? `<span class="pill p-fail">结构 ${r.shapeErrs.length} 处</span>`
       : '<span class="pill p-pass">结构通过</span>';
 
@@ -252,9 +379,8 @@ function renderTable() {
 }
 
 async function runAll() {
-  const key = getKey();
-  if (!key) {
-    alert('请先在「练习」页填入 DeepSeek API Key。');
+  if (!cfg.key || !cfg.base || !cfg.model) {
+    alert('请先在「练习」页填全模型服务配置并保存。');
     return;
   }
   if (running) return;
@@ -271,7 +397,7 @@ async function runAll() {
 
     const t0 = performance.now();
     try {
-      const data = await callAI(c.input, c.level, key);
+      const data = await callAI(c.input, c.level);
       results[c.id] = {
         obj: data.obj,
         raw: data.raw,
@@ -311,8 +437,8 @@ function renderSummary() {
   $('summary').innerHTML = `
     <b>自动校验结果</b>（仅结构层面，语义需人工核对）：<br>
     结构通过 <b>${ok}</b> 条 · 结构异常 <b>${shape}</b> 条 · 请求失败 <b>${bad}</b> 条<br>
-    总耗时 ${(tot / 1000).toFixed(1)} s · 累计消耗 ${tokens} tokens<br>
-    <span class="hint small">下一步：逐条看右侧「AI 输出」，在「人工评价」里勾选判对 / 判错，再导出 CSV 作为测试报告原始依据。</span>
+    总耗时 ${(tot / 1000).toFixed(1)} s · 累计消耗 ${tokens} tokens · 模型 ${esc(cfg.model)}<br>
+    <span class="hint small">下一步：逐条看「AI 输出」，在「人工评价」里勾选判对 / 判错，再导出 CSV 作为测试报告原始依据。</span>
   `;
 }
 
@@ -331,7 +457,7 @@ function exportCSV() {
   });
 
   const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
-  const csv = '﻿' + [head, ...rows].map((r) => r.map(q).join(',')).join('\r\n');
+  const csv = '\uFEFF' + [head, ...rows].map((r) => r.map(q).join(',')).join('\r\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   const a = document.createElement('a');
   a.href = url;
@@ -351,21 +477,41 @@ document.querySelectorAll('.tab').forEach((t) => {
   });
 });
 
-$('saveKey').addEventListener('click', () => {
-  const v = $('apiKey').value.trim();
-  if (!v) { alert('请输入 Key'); return; }
-  setKey(v);
-  refreshKeyUI();
+// 服务商下拉切换
+$('providerSel').addEventListener('change', (e) => {
+  const p = PROVIDERS.find((x) => x.id === e.target.value);
+  if (!p) return;
+  $('baseUrl').value = p.base;
+  $('modelName').value = p.model;
+  $('providerNote').textContent = `${p.note}${p.doc ? ' · ' + p.doc : ''}`;
+  $('endpointPreview').textContent = buildEndpoint(p.base) || '—';
 });
-$('clearKey').addEventListener('click', () => {
-  setKey('');
-  refreshKeyUI();
+
+$('baseUrl').addEventListener('input', () => {
+  $('endpointPreview').textContent = buildEndpoint($('baseUrl').value) || '—';
 });
+
+$('saveCfgBtn').addEventListener('click', () => {
+  cfg = readFormCfg();
+  saveCfg(cfg);
+  refreshSettingsUI();
+  setConnResult('✓ 配置已保存到本机浏览器', true);
+});
+
+$('clearCfgBtn').addEventListener('click', () => {
+  if (!confirm('确定清除本机保存的 API Key 和服务配置？')) return;
+  localStorage.removeItem(CFG_STORE);
+  cfg = { ...DEFAULT_CFG, key: '' };
+  refreshSettingsUI();
+  setConnResult('已清除本机保存的配置', false);
+});
+
+$('testConnBtn').addEventListener('click', testConnection);
 
 $('levelRow').addEventListener('click', (e) => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
-  document.querySelectorAll('.chip').forEach((c) => c.classList.remove('is-active'));
+  document.querySelectorAll('.chip').forEach((x) => x.classList.remove('is-active'));
   chip.classList.add('is-active');
   currentLevel = chip.dataset.level;
 });
@@ -384,5 +530,12 @@ $('runAllBtn').addEventListener('click', runAll);
 $('stopBtn').addEventListener('click', () => { stopFlag = true; });
 $('exportBtn').addEventListener('click', exportCSV);
 
-renderTable();
-refreshKeyUI();
+/* ---------------- 初始化 ---------------- */
+
+(function init() {
+  $('providerSel').innerHTML = PROVIDERS
+    .map((p) => `<option value="${p.id}">${esc(p.name)}</option>`)
+    .join('');
+  refreshSettingsUI();
+  renderTable();
+})();

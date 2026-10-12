@@ -95,6 +95,37 @@ main { max-width: 900px; margin: 0 auto; padding: 24px 20px 60px; }
 }
 .key-row input:focus { outline: 2px solid var(--brand-soft); border-color: var(--brand); }
 
+/* ---------- 服务商设置 ---------- */
+.select, .text-input {
+  width: 100%; padding: 9px 12px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface); color: var(--text);
+  font-size: 14px; font-family: inherit;
+}
+.text-input { font-family: var(--mono); font-size: 13px; }
+.select:focus, .text-input:focus { outline: 2px solid var(--brand-soft); border-color: var(--brand); }
+
+.grid-2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.grid-2 .field-label { margin-top: 12px; }
+@media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+
+.checkline {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text-dim); margin-top: 12px; cursor: pointer;
+}
+.checkline input { width: 15px; height: 15px; cursor: pointer; }
+
+.conn-result {
+  margin: 12px 0 0; padding: 9px 12px; border-radius: 8px;
+  font-family: var(--mono); font-size: 12px; line-height: 1.6;
+  background: var(--bg); color: var(--text-dim);
+  white-space: pre-wrap; word-break: break-all;
+}
+.conn-result.is-ok { background: var(--ok-soft); color: var(--ok); }
+.conn-result.is-bad { background: var(--err-soft); color: var(--err); }
+
 .hint { font-size: 13px; color: var(--text-dim); margin: 6px 0; }
 .hint.small { font-size: 12px; }
 code {

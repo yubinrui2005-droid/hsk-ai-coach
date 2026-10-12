@@ -1,4 +1,4 @@
-# HSK AI 中文陪练 · MVP v0.1
+# HSK AI 中文陪练 · MVP v0.2
 
 > 一句话纠错：中文学习者写完一句话，不知道说得对不对、怎样更自然。
 > AI 只指出**一个最主要的问题**，给出更自然的表达和简短解释。
@@ -20,52 +20,84 @@
 ## 二、怎么用
 
 1. 双击 `start.bat`（会自动启动本地服务器并打开浏览器）
-2. 在页面顶部填入你的 DeepSeek API Key
-3. 选等级 → 输入句子 → 点「检查这句话」
-4. 切到「测试案例」页 → 批量运行 20 条 → 逐条人工核对 → 导出 CSV
+2. 在「模型服务」里选服务商（或自定义中转站），填 **Base URL / 模型名 / API Key**
+3. 点「测试连接」确认通了 → 点「保存配置」
+4. 选等级 → 输入句子 → 点「检查这句话」
+5. 切到「测试案例」页 → 批量运行 20 条 → 逐条人工核对 → 导出 CSV
 
 > 必须用 `start.bat` 启动，不能直接双击 `index.html`。
 > 浏览器对 `file://` 页面的跨域请求限制更严格，本地服务器可避开。
 
 ---
 
-## 三、关于 API Key（重要）
+## 三、模型服务可自由切换
+
+支持**任意 OpenAI 兼容接口**：官方直连、国内中转站、自建网关（One API / New API）、本地 Ollama，全部能填。
+只要它提供 `/chat/completions`，就能用。
+
+内置预设（`providers.js`）：
+
+| 服务商 | Base URL | 默认模型 |
+|---|---|---|
+| DeepSeek 官方 | `https://api.deepseek.com` | `deepseek-v4-flash` |
+| 硅基流动 SiliconFlow | `https://api.siliconflow.cn/v1` | `Qwen/Qwen2.5-7B-Instruct` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `deepseek/deepseek-chat` |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` |
+| 月之暗面 Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` |
+| 阿里通义千问（兼容模式） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` |
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
+| 本地 Ollama | `http://localhost:11434/v1` | `qwen2.5:7b` |
+| 自定义 / 中转站 | 自己填 | 自己填 |
+
+> 各家地址以官方文档为准，有变动直接在输入框里改。
+
+### 三个兼容性设计
+
+1. **Base URL 自动补全**：只需填到域名或 `/v1`，程序自动拼成完整的 `/chat/completions`。
+   输入时下方实时显示拼好的地址，方便核对。
+2. **严格 JSON 模式可关，且会自动降级**：部分中转站不支持 `response_format: json_object`。
+   勾选时会先带参数请求，若报错信息显示不支持，自动去掉该参数重试一次。
+3. **一键测试连接**：发一个 `max_tokens: 1` 的最小请求，直接返回延迟、HTTP 状态、
+   以及**实际命中的模型名**——中转站常做模型映射，这个字段能验证你填的名字对不对。
+
+## 四、关于 API Key（重要）
 
 **Key 不写进代码，也不进 Git 仓库。**
 
 原因：本产品最终要部署到 GitHub Pages 公开访问。任何写进前端代码的 Key 都会被任何人通过「查看源代码」看到并盗刷余额，浏览器里没有秘密可言。
 
-当前方案：Key 存在使用者自己的浏览器 `localStorage` 里，输入后只在本机生效，代码仓库中零密钥。
+当前方案：Key 与服务商配置一起存在使用者自己的浏览器 `localStorage` 里，代码仓库中零密钥，可一键清除。
 
 后续若要公开发布让别人免 Key 体验，正确做法是加一层服务端代理（Cloudflare Worker 等）把 Key 挡在后端。这一步留到 v0.3。
 
 ---
 
-## 四、技术栈
+## 五、技术栈
 
 | 项 | 选择 | 理由 |
 |---|---|---|
 | 前端 | 原生 HTML / CSS / JS，无框架无构建 | 零安装门槛，双击即用，代码可读性高 |
-| 模型 | DeepSeek `deepseek-v4-flash` | 便宜（输入 ¥1 / 输出 ¥2 每百万 token 量级），中文能力强 |
-| 接口 | OpenAI 兼容 `/chat/completions` | 已验证支持浏览器 CORS 直连 |
-| 输出 | `response_format: json_object` + `temperature: 0` | 保证结构化、可复现 |
+| 接口 | OpenAI 兼容 `/chat/completions` | 事实标准，一家对接等于对接全部 |
+| 默认模型 | DeepSeek `deepseek-v4-flash` | 便宜、中文强，但**可随时换** |
+| 输出 | `response_format: json_object` + `temperature: 0` | 保证结构化、可复现；不支持时降级 |
 | 部署 | 静态文件，GitHub Pages | 无需服务器 |
 
 文件说明：
 
 ```
 web/
-├─ index.html      页面结构（练习 / 测试 / 说明 三个页签）
-├─ styles.css      样式
-├─ app.js          逻辑：提示词构造、API 调用、结构校验、批量测试
-├─ testcases.js    20 条测试案例
-├─ start.bat       本地启动脚本
-└─ README.md       本文件
+├─ index.html       页面结构（练习 / 测试案例 / 说明 三个页签）
+├─ styles.css       样式
+├─ providers.js     服务商预设 + Base URL 自动补全逻辑
+├─ app.js           逻辑：配置管理、提示词构造、API 调用、结构校验、批量测试
+├─ testcases.js     20 条测试案例
+├─ start.bat        本地启动脚本
+└─ README.md        本文件
 ```
 
 ---
 
-## 五、提示词设计要点
+## 六、提示词设计要点
 
 系统提示词（`app.js` 的 `buildSystemPrompt`）做了这几件事：
 
@@ -79,7 +111,7 @@ web/
 
 ---
 
-## 六、测试案例（20 条）
+## 七、测试案例（20 条）
 
 见 `testcases.js`，分四类：
 
@@ -99,17 +131,19 @@ web/
 
 ---
 
-## 七、已知限制
+## 八、已知限制
 
 - 无历史记录，刷新页面结果即消失
 - 无用户系统，不保存学习进度
-- 批量测试串行执行，20 条约需 1-2 分钟
+- 批量测试串行执行，20 条约需 1-2 分钟（取决于服务商）
 - 只做单句纠错，不支持段落或多轮对话
 - 未做流式输出，长句等待感明显
 - 词库（小程序的 50 词）尚未接入网页版，AI 当前不参考具体词表
 
 ---
 
-## 八、版本记录
+## 九、版本记录
 
 - **v0.1**（2026-10-12）：MVP 初版。练习页 + 20 条测试案例 + 结构校验 + CSV 导出。
+- **v0.2**（2026-10-12）：模型服务可切换。新增服务商预设、Base URL 自动补全、
+  连接测试、严格 JSON 模式开关与自动降级；Key 与服务商配置合并为本机配置。

@@ -30,22 +30,50 @@
 
     <div class="card key-card" id="keyCard">
       <div class="key-head">
-        <strong>DeepSeek API Key</strong>
-        <span class="badge" id="keyStatus">未设置</span>
+        <strong>模型服务</strong>
+        <span class="badge" id="cfgStatus">未设置</span>
       </div>
       <p class="hint">
-        Key 只保存在<b>你自己的浏览器</b>（localStorage）里，不会写进代码、不会上传到任何服务器以外的第三方。
-        离开页面可随时清除。
+        支持任意 <b>OpenAI 兼容接口</b>：官方直连、国内中转站、自建网关、本地模型都能填。
+        Key 只保存在<b>你自己的浏览器</b>（localStorage）里，不会写进代码，也不会进 Git 仓库。
       </p>
-      <div class="key-row">
-        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
-        <button id="saveKey" class="btn primary">保存</button>
-        <button id="clearKey" class="btn ghost">清除</button>
+
+      <label class="field-label" for="providerSel">服务商</label>
+      <select id="providerSel" class="select"></select>
+      <p class="hint small" id="providerNote"></p>
+
+      <div class="grid-2">
+        <div>
+          <label class="field-label" for="baseUrl">Base URL</label>
+          <input type="text" id="baseUrl" class="text-input" placeholder="https://api.deepseek.com" spellcheck="false">
+        </div>
+        <div>
+          <label class="field-label" for="modelName">模型名称</label>
+          <input type="text" id="modelName" class="text-input" placeholder="deepseek-v4-flash" spellcheck="false">
+        </div>
       </div>
       <p class="hint small">
-        还没有 Key？到 platform.deepseek.com 申请。当前使用模型 <code>deepseek-v4-flash</code>，
-        输入 ¥1.0 / 输出 ¥2.0 每百万 token（约），测试 20 个案例花费不到 1 分钱。
+        实际请求地址：<code id="endpointPreview">—</code>
+        <span class="hint small">（Base URL 会自动补全成 <code>/chat/completions</code>，不用自己加）</span>
       </p>
+
+      <label class="field-label" for="apiKey">API Key</label>
+      <div class="key-row">
+        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+      </div>
+
+      <label class="checkline">
+        <input type="checkbox" id="strictJson" checked>
+        <span>严格 JSON 输出（若服务商不支持会自动降级重试）</span>
+      </label>
+
+      <div class="actions">
+        <button id="saveCfgBtn" class="btn primary">保存配置</button>
+        <button id="testConnBtn" class="btn">测试连接</button>
+        <button id="clearCfgBtn" class="btn ghost">清除</button>
+      </div>
+
+      <p class="conn-result" id="connResult" hidden></p>
     </div>
 
     <div class="card">
@@ -169,25 +197,39 @@
       把 Key 挡在后端。这一步留到后续迭代。</p>
     </div>
 
-    <div class="card">
-      <h2>技术栈</h2>
-      <ul class="list">
-        <li>纯静态 HTML / CSS / 原生 JavaScript，无框架、无构建步骤</li>
-        <li>DeepSeek <code>deepseek-v4-flash</code>，OpenAI 兼容 <code>/chat/completions</code> 接口</li>
-        <li>JSON Output 模式保证结构化返回</li>
-        <li>可部署到 GitHub Pages</li>
-      </ul>
-    </div>
+      <div class="card">
+        <h2>技术栈</h2>
+        <ul class="list">
+          <li>纯静态 HTML / CSS / 原生 JavaScript，无框架、无构建步骤</li>
+          <li>OpenAI 兼容 <code>/chat/completions</code> 接口，服务商可自由切换</li>
+          <li>JSON Output 模式保证结构化返回；服务商不支持时自动降级</li>
+          <li>可部署到 GitHub Pages</li>
+        </ul>
+      </div>
 
-    <div class="card">
-      <h2>怎么用</h2>
-      <ol class="list">
-        <li>双击项目里的 <code>start.bat</code>（会用本地服务器打开，避免 file:// 的跨域限制）</li>
-        <li>填入你的 DeepSeek Key</li>
-        <li>选等级 → 输入句子 → 检查</li>
-        <li>到「测试案例」页批量跑 20 条，逐条人工核对语义</li>
-      </ol>
-    </div>
+      <div class="card">
+        <h2>切换模型服务</h2>
+        <p>在「练习」页顶部的「模型服务」卡片里选服务商，或直接用<b>自定义</b>填中转站地址。
+        三项必填：<b>Base URL</b>、<b>模型名称</b>、<b>API Key</b>。</p>
+        <ul class="list">
+          <li><b>中转站 / 自建网关</b>（One API、New API 等）：选「自定义」，Base URL 填到 <code>/v1</code> 为止，
+              模型名按该网关的规范填</li>
+          <li><b>地址怕填错？</b>填的时候下方会实时显示拼好的完整请求地址，对着检查一遍</li>
+          <li><b>拿不准能不能用？</b>点「测试连接」，会发一个 1 token 的最小请求，直接告诉你通不通、实际命中的是哪个模型</li>
+          <li><b>报 response_format 相关错误？</b>取消勾选「严格 JSON 输出」再试，程序也会自动降级重试一次</li>
+        </ul>
+        <p class="hint">各家地址以官方文档为准，预设值如有变动直接在输入框里改即可。</p>
+      </div>
+
+      <div class="card">
+        <h2>怎么用</h2>
+        <ol class="list">
+          <li>双击项目里的 <code>start.bat</code>（会用本地服务器打开，避免 file:// 的跨域限制）</li>
+          <li>在「模型服务」里选服务商，填 Key，点「测试连接」确认通了，再「保存配置」</li>
+          <li>选等级 → 输入句子 → 检查</li>
+          <li>到「测试案例」页批量跑 20 条，逐条人工核对语义</li>
+        </ol>
+      </div>
   </section>
 
 </main>
@@ -196,6 +238,7 @@
   HSK AI 中文陪练 · MVP v0.1 · 数据仅用于功能验证，不代表任何真实用户行为
 </footer>
 
+<script src="providers.js"></script>
 <script src="testcases.js"></script>
 <script src="app.js"></script>
 </body>
