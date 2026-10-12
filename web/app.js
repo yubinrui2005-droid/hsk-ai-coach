@@ -107,29 +107,18 @@ function isFormatUnsupported(msg) {
 }
 
 /**
- * 调用模型。strictJson 开启时先带 response_format 请求，
- * 若服务端不支持则自动去掉该参数重试一次。
+ * 底层发送：给定完整 messages，请求模型并解析成 JSON。
+ * strictJson 开启时先带 response_format，若服务端不支持则自动去掉重试一次。
  */
-async function callAI(sentence, level, options = {}) {
-  const c = options.cfg || cfg;
+async function callAIRaw(messages, c) {
   const endpoint = buildEndpoint(c.base);
 
   if (!c.key) throw new Error('未设置 API Key');
   if (!endpoint) throw new Error('未设置 Base URL');
   if (!c.model) throw new Error('未设置模型名称');
 
-  const messages = [
-    { role: 'system', content: buildSystemPrompt(level) },
-    { role: 'user', content: buildUserPrompt(sentence, level) },
-  ];
-
   const send = async (strict) => {
-    const payload = {
-      model: c.model,
-      messages,
-      temperature: 0,
-      stream: false,
-    };
+    const payload = { model: c.model, messages, temperature: 0, stream: false };
     if (strict) payload.response_format = { type: 'json_object' };
 
     const res = await fetch(endpoint, {
@@ -163,6 +152,15 @@ async function callAI(sentence, level, options = {}) {
 
   const raw = data?.choices?.[0]?.message?.content ?? '';
   return { raw, obj: parseJSON(raw), usage: data?.usage || {}, endpoint };
+}
+
+/** 一句话纠错：拼好提示词后走 callAIRaw */
+async function callAI(sentence, level) {
+  const messages = [
+    { role: 'system', content: buildSystemPrompt(level) },
+    { role: 'user', content: buildUserPrompt(sentence, level) },
+  ];
+  return callAIRaw(messages, cfg);
 }
 
 /* ---------------- 设置区 ---------------- */
@@ -322,6 +320,222 @@ async function checkOne() {
     btn.disabled = false;
     btn.textContent = '检查这句话';
   }
+}
+
+/* ---------------- 场景对话 ---------------- */
+
+const sceneState = {
+  scene: null,
+  step: 0,          // 当前第几轮（0 起）
+  history: [],      // {role:'assistant'|'user', text}
+  retry: 0,         // 没说清的次数
+  peek: 0,          // 看提示次数
+  best: '',         // 说得最顺的一句
+  t0: 0,
+  busy: false,
+};
+
+function renderSceneGrid() {
+  $('sceneGrid').innerHTML = SCENES.map((s) => `
+    <button class="scene-tile" data-id="${s.id}">
+      <span class="scene-name">${esc(s.name)}</span>
+      <span class="scene-role">${esc(s.role)}</span>
+      <span class="scene-meta">${s.steps.length} 轮</span>
+    </button>`).join('');
+}
+
+function renderChat() {
+  const s = sceneState.scene;
+  if (!s) return;
+  const html = sceneState.history.map((m) => {
+    if (m.role === 'user') {
+      return `<div class="msg mine"><div class="bubble">${esc(m.text)}</div></div>`;
+    }
+    return `<div class="msg">
+      <div class="avatar">${esc(s.avatar)}</div>
+      <div>
+        <div class="bubble">${esc(m.text)}</div>
+        ${m.confused ? '<div class="confused">没听懂</div>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+  $('chat').innerHTML = html;
+  $('chat').scrollTop = $('chat').scrollHeight;
+
+  const total = s.steps.length;
+  $('stepDots').innerHTML = Array.from({ length: total }, (_, i) =>
+    `<i class="${i < sceneState.step ? 'on' : i === sceneState.step ? 'now' : ''}"></i>`).join('');
+}
+
+function resetPeekBtn() {
+  const b = $('peekBtn');
+  b.disabled = false;
+  b.textContent = '看提示（会记一笔）';
+}
+
+function startScene(id) {
+  const s = SCENES.find((x) => x.id === id);
+  if (!s) return;
+  resetPeekBtn();
+  sceneState.scene = s;
+  sceneState.step = 0;
+  sceneState.retry = 0;
+  sceneState.peek = 0;
+  sceneState.best = '';
+  sceneState.t0 = performance.now();
+  sceneState.history = [{ role: 'assistant', text: s.opening }];
+
+  $('sceneTitle').textContent = `${s.name} · ${s.role}`;
+  $('scenePickerCard').hidden = true;
+  $('sceneRunCard').hidden = false;
+  $('sceneDoneCard').hidden = true;
+  $('coachCard').hidden = true;
+  $('sceneInput').value = '';
+  renderChat();
+  $('sceneInput').focus();
+}
+
+function quitScene() {
+  sceneState.scene = null;
+  $('scenePickerCard').hidden = false;
+  $('sceneRunCard').hidden = true;
+  $('sceneDoneCard').hidden = true;
+}
+
+/** 场景对话的专用提示词：AI 同时扮演角色和判断者 */
+function buildSceneSystem(scene, goal, level) {
+  return `你在做中文口语陪练，扮演真实场景里的一个角色。
+
+角色：${scene.role}
+场景：${scene.name}
+学习者水平：HSK ${level}
+当前这一轮，学习者需要完成的任务是：${goal}
+（上面这句是给你的判断依据，绝对不要直接说出来，也不要替学习者完成）
+
+必须输出且只输出一个 JSON 对象，不要任何前后缀或代码块标记：
+{
+  "reply": "角色说的话，1-2 句，口语化，像真人在说话",
+  "understood": true 或 false,
+  "advance": true 或 false,
+  "issue": "understood 为 false 时，一句话指出具体问题；为 true 时填空字符串",
+  "suggestion": "understood 为 false 时，给出该怎么说的建议；为 true 时填空字符串"
+}
+
+规则：
+1. 用角色的口吻说话。不要像老师，不要讲课，不要鼓励式发言。
+2. 判断学习者的话：能不能被角色听懂、能不能完成当前任务。
+3. 听懂且完成了任务 → understood=true, advance=true，角色自然回应并把对话往下推。
+4. 没听懂或没完成任务 → understood=false, advance=false。
+   角色要表现出真实反应，比如「啊？」「您说什么？」「不好意思，您是想说……吗？」。
+   不要直接改成老师语气去纠正，那是 issue 字段的事。
+5. issue 和 suggestion 是写给学习者看的中文纠正，各一句话，简洁。
+6. 角色说的话也要匹配 HSK ${level} 的难度，别用太难的词。
+7. 不要虚构事实，不要替学习者编造他没说的内容。`;
+}
+
+async function sendScene() {
+  if (sceneState.busy) return;
+  const s = sceneState.scene;
+  if (!s) return;
+
+  const text = $('sceneInput').value.trim();
+  if (!text) return;
+
+  if (!cfg.key || !cfg.base || !cfg.model) {
+    alert('请先在「练习」页填全模型服务配置并保存。');
+    return;
+  }
+
+  const step = s.steps[sceneState.step];
+  sceneState.history.push({ role: 'user', text });
+  $('sceneInput').value = '';
+  $('coachCard').hidden = true;
+  renderChat();
+
+  sceneState.busy = true;
+  $('sendSceneBtn').disabled = true;
+  $('sendSceneBtn').textContent = '对方在想…';
+
+  // 组装多轮上下文（只带本场景的对话）
+  const messages = [
+    { role: 'system', content: buildSceneSystem(s, step.goal, currentLevel) },
+  ];
+  sceneState.history.slice(-8).forEach((m) => {
+    messages.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text });
+  });
+
+  try {
+    const data = await callAIRaw(messages, cfg);
+    const o = data.obj;
+
+    sceneState.history.push({
+      role: 'assistant',
+      text: o.reply || '……',
+      confused: o.understood === false,
+    });
+
+    if (o.understood === false) {
+      sceneState.retry += 1;
+      $('coachIssue').textContent = o.issue || '这句话对方没听明白';
+      $('coachSuggest').textContent = o.suggestion || '';
+      $('coachHint').hidden = true;
+      $('coachHint').textContent = step.tip || '';
+      resetPeekBtn();
+      $('peekBtn').hidden = !step.tip;
+      $('coachCard').hidden = false;
+    } else {
+      sceneState.best = text;
+      if (o.advance !== false) {
+        sceneState.step += 1;
+        if (sceneState.step >= s.steps.length) {
+          renderChat();
+          finishScene();
+          return;
+        }
+      }
+    }
+    renderChat();
+  } catch (e) {
+    sceneState.history.push({ role: 'assistant', text: `（出错了：${e.message}）` });
+    renderChat();
+  } finally {
+    sceneState.busy = false;
+    $('sendSceneBtn').disabled = false;
+    $('sendSceneBtn').textContent = '发送';
+  }
+}
+
+function finishScene() {
+  const s = sceneState.scene;
+  const ms = performance.now() - sceneState.t0;
+
+  $('doneSummary').textContent =
+    `「${s.name}」${s.steps.length} 轮全部完成。没说清 ${sceneState.retry} 次，看提示 ${sceneState.peek} 次，用时 ${fmtDuration(ms)}。`;
+
+  const cv = $('scoreCanvas');
+  const ctx = cv.getContext('2d');
+  drawScoreCard(ctx, {
+    sceneName: s.name,
+    role: s.role,
+    done: s.steps.length,
+    total: s.steps.length,
+    retry: sceneState.retry,
+    peek: sceneState.peek,
+    ms,
+    best: sceneState.best,
+    model: cfg.model,
+  });
+
+  $('sceneRunCard').hidden = true;
+  $('sceneDoneCard').hidden = false;
+}
+
+function downloadCard() {
+  const cv = $('scoreCanvas');
+  const a = document.createElement('a');
+  a.download = `hsk-成绩卡-${sceneState.scene?.id || 'scene'}-${Date.now()}.png`;
+  a.href = cv.toDataURL('image/png');
+  a.click();
 }
 
 /* ---------------- 测试页 ---------------- */
@@ -514,6 +728,8 @@ $('levelRow').addEventListener('click', (e) => {
   document.querySelectorAll('.chip').forEach((x) => x.classList.remove('is-active'));
   chip.classList.add('is-active');
   currentLevel = chip.dataset.level;
+  $('sceneLevelNote').textContent =
+    `对话难度跟随你在「练习」页选的 HSK ${currentLevel}；改等级后再开新场景才生效。`;
 });
 
 $('checkBtn').addEventListener('click', checkOne);
@@ -530,6 +746,39 @@ $('runAllBtn').addEventListener('click', runAll);
 $('stopBtn').addEventListener('click', () => { stopFlag = true; });
 $('exportBtn').addEventListener('click', exportCSV);
 
+/* ---- 场景 ---- */
+
+$('sceneGrid').addEventListener('click', (e) => {
+  const tile = e.target.closest('.scene-tile');
+  if (!tile) return;
+  document.querySelectorAll('.scene-tile').forEach((t) => t.classList.remove('is-active'));
+  tile.classList.add('is-active');
+  $('startSceneBtn').disabled = false;
+  $('startSceneBtn').dataset.pick = tile.dataset.id;
+});
+
+$('startSceneBtn').addEventListener('click', () => {
+  startScene($('startSceneBtn').dataset.pick);
+});
+$('quitSceneBtn').addEventListener('click', quitScene);
+$('restartSceneBtn').addEventListener('click', () => {
+  if (sceneState.scene) startScene(sceneState.scene.id);
+});
+$('sendSceneBtn').addEventListener('click', sendScene);
+$('sceneInput').addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') sendScene();
+});
+
+$('peekBtn').addEventListener('click', () => {
+  sceneState.peek += 1;
+  $('coachHint').hidden = false;
+  $('peekBtn').disabled = true;
+  $('peekBtn').textContent = `已看提示（${sceneState.peek} 次）`;
+});
+
+$('downloadCardBtn').addEventListener('click', downloadCard);
+$('backToScenesBtn').addEventListener('click', quitScene);
+
 /* ---------------- 初始化 ---------------- */
 
 (function init() {
@@ -538,4 +787,7 @@ $('exportBtn').addEventListener('click', exportCSV);
     .join('');
   refreshSettingsUI();
   renderTable();
+  renderSceneGrid();
+  $('sceneLevelNote').textContent =
+    `对话难度跟随你在「练习」页选的 HSK ${currentLevel}；改等级后再开新场景才生效。`;
 })();
