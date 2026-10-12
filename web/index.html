@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSK AI 中文陪练 · 一句话纠错</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">海</span>
+    <div>
+      <h1>HSK AI 中文陪练</h1>
+      <p class="sub">MVP · 一句话纠错</p>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab is-active" data-tab="practice">练习</button>
+    <button class="tab" data-tab="tests">测试案例</button>
+    <button class="tab" data-tab="about">说明</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ============ 练习 ============ -->
+  <section id="panel-practice" class="panel is-active">
+
+    <div class="card key-card" id="keyCard">
+      <div class="key-head">
+        <strong>DeepSeek API Key</strong>
+        <span class="badge" id="keyStatus">未设置</span>
+      </div>
+      <p class="hint">
+        Key 只保存在<b>你自己的浏览器</b>（localStorage）里，不会写进代码、不会上传到任何服务器以外的第三方。
+        离开页面可随时清除。
+      </p>
+      <div class="key-row">
+        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+        <button id="saveKey" class="btn primary">保存</button>
+        <button id="clearKey" class="btn ghost">清除</button>
+      </div>
+      <p class="hint small">
+        还没有 Key？到 platform.deepseek.com 申请。当前使用模型 <code>deepseek-v4-flash</code>，
+        输入 ¥1.0 / 输出 ¥2.0 每百万 token（约），测试 20 个案例花费不到 1 分钱。
+      </p>
+    </div>
+
+    <div class="card">
+      <label class="field-label" for="level">学习者水平</label>
+      <div class="level-row" id="levelRow">
+        <button class="chip is-active" data-level="1-2">HSK 1-2</button>
+        <button class="chip" data-level="3-4">HSK 3-4</button>
+        <button class="chip" data-level="5-6">HSK 5-6</button>
+      </div>
+
+      <label class="field-label" for="sentence">输入一句中文</label>
+      <textarea id="sentence" rows="3" placeholder="例如：我昨天去学校学习中文了两个小时。"></textarea>
+
+      <div class="actions">
+        <button id="checkBtn" class="btn primary big">检查这句话</button>
+        <button id="clearBtn" class="btn ghost">清空</button>
+      </div>
+    </div>
+
+    <div class="card result-card" id="resultCard" hidden>
+      <div class="result-head">
+        <span class="verdict" id="verdict"></span>
+        <span class="meta" id="runMeta"></span>
+      </div>
+
+      <div class="result-block">
+        <div class="rk">原句</div>
+        <div class="rv" id="rvOriginal"></div>
+      </div>
+
+      <div class="result-block">
+        <div class="rk">主要问题</div>
+        <div class="rv" id="rvProblem"></div>
+      </div>
+
+      <div class="result-block highlight">
+        <div class="rk">更自然的表达</div>
+        <div class="rv big-text" id="rvNatural"></div>
+      </div>
+
+      <div class="result-block">
+        <div class="rk">解释</div>
+        <div class="rv" id="rvExplain"></div>
+      </div>
+
+      <div class="result-block">
+        <div class="rk">小提示</div>
+        <div class="rv" id="rvTip"></div>
+      </div>
+
+      <div class="result-block" id="kwBlock">
+        <div class="rk">涉及语法点</div>
+        <div class="rv" id="rvKeywords"></div>
+      </div>
+
+      <details class="raw">
+        <summary>查看原始 JSON</summary>
+        <pre id="rvRaw"></pre>
+      </details>
+    </div>
+
+    <div class="card error-card" id="errorCard" hidden>
+      <strong>出错了</strong>
+      <pre id="errorText"></pre>
+      <p class="hint small">常见原因：Key 无效或余额不足、网络不通、返回内容不是合法 JSON。</p>
+    </div>
+  </section>
+
+  <!-- ============ 测试 ============ -->
+  <section id="panel-tests" class="panel">
+    <div class="card">
+      <h2>AI 输出测试案例（20 条）</h2>
+      <p class="hint">
+        覆盖四类：<b>语法纠正</b>、<b>正确句不误判</b>、<b>等级适配</b>、<b>异常输入处理</b>。
+        批量运行会自动检查<b>结构合法性</b>（能否解析 JSON、字段是否齐全、取值是否在允许范围内）。
+        <b>语义是否判对需要你人工核实</b>——工具不会替你编造准确率。
+      </p>
+      <div class="actions">
+        <button id="runAllBtn" class="btn primary">批量运行全部</button>
+        <button id="stopBtn" class="btn ghost" disabled>停止</button>
+        <button id="exportBtn" class="btn ghost" disabled>导出 CSV</button>
+        <span class="progress" id="progress"></span>
+      </div>
+      <div class="summary" id="summary" hidden></div>
+    </div>
+
+    <div class="card table-card">
+      <table id="testTable">
+        <thead>
+          <tr>
+            <th style="width:32px">#</th>
+            <th style="width:88px">类别</th>
+            <th style="width:76px">等级</th>
+            <th>输入</th>
+            <th style="width:92px">结构</th>
+            <th style="width:150px">AI 判定</th>
+            <th>AI 输出（更自然的表达）</th>
+            <th style="width:64px">耗时</th>
+            <th style="width:96px">人工评价</th>
+          </tr>
+        </thead>
+        <tbody id="testBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 说明 ============ -->
+  <section id="panel-about" class="panel">
+    <div class="card">
+      <h2>这个 MVP 是什么</h2>
+      <p><b>一句话纠错</b>：中文学习者写完一句话，不知道说得对不对、怎样更自然。AI 只指出<b>一个最主要的问题</b>，
+      给出更自然的表达和简短解释。</p>
+      <p class="hint">刻意不做的功能：语音识别、实时对话、课程体系、用户系统。先把一个点做透、测透。</p>
+    </div>
+
+    <div class="card">
+      <h2>为什么 Key 不写进代码</h2>
+      <p>这个页面未来会部署到 GitHub Pages 公开访问。任何写进前端代码的 Key 都会被任何人看到并盗刷。
+      因此 Key 只存在使用者自己的浏览器里，代码仓库中不含任何密钥。</p>
+      <p class="hint">如果将来要公开发布让别人免 Key 体验，正确做法是加一层服务端代理（如 Cloudflare Worker）
+      把 Key 挡在后端。这一步留到后续迭代。</p>
+    </div>
+
+    <div class="card">
+      <h2>技术栈</h2>
+      <ul class="list">
+        <li>纯静态 HTML / CSS / 原生 JavaScript，无框架、无构建步骤</li>
+        <li>DeepSeek <code>deepseek-v4-flash</code>，OpenAI 兼容 <code>/chat/completions</code> 接口</li>
+        <li>JSON Output 模式保证结构化返回</li>
+        <li>可部署到 GitHub Pages</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>怎么用</h2>
+      <ol class="list">
+        <li>双击项目里的 <code>start.bat</code>（会用本地服务器打开，避免 file:// 的跨域限制）</li>
+        <li>填入你的 DeepSeek Key</li>
+        <li>选等级 → 输入句子 → 检查</li>
+        <li>到「测试案例」页批量跑 20 条，逐条人工核对语义</li>
+      </ol>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  HSK AI 中文陪练 · MVP v0.1 · 数据仅用于功能验证，不代表任何真实用户行为
+</footer>
+
+<script src="testcases.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
