@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b0b0f">
+<meta name="color-scheme" content="dark">
 <title>HSK AI 中文陪练 · 一句话纠错</title>
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -155,6 +157,13 @@
             开局的剧本由 AI 现场编写——<b>同一场景再玩一次，台词也不一样</b>。
             你说的话决定对话能不能往下走，说不明白对方就听不懂。
           </p>
+          <div class="hero-stats">
+            <div class="hstat"><b>18</b><span>场景</span></div>
+            <div class="hstat"><b>10</b><span>对手性格</span></div>
+            <div class="hstat"><b>9</b><span>本局挑战</span></div>
+            <div class="hstat"><b>14</b><span>意外事件</span></div>
+            <div class="hstat"><b><em>45,360</em></b><span>组合数</span></div>
+          </div>
         </div>
         <img class="hero-img" src="assets/cards-hero.png" alt="四张随机牌插画">
       </div>
@@ -169,9 +178,6 @@
         <button id="startSceneBtn" class="btn primary" disabled>开始对话</button>
       </div>
       <p class="hint small" id="sceneLevelNote"></p>
-      <p class="hint small">
-        素材池：18 个场景 × 10 种性格 × 9 种挑战 × 14 种意外，组合数超过两万种。
-      </p>
     </div>
 
     <div class="card" id="sceneRunCard" hidden>
