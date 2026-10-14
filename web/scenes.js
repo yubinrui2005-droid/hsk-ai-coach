@@ -28,9 +28,26 @@ const SCENE_POOL = [
   { id: 'neighbor',   cat: '社交', emoji: '🏘️', name: '邻居太吵',     role: '楼上邻居',     brief: '委婉提意见、说清楚时间、商量办法' },
   { id: 'teacher',    cat: '社交', emoji: '📚', name: '找老师请假',   role: '班主任',       brief: '说明原因、说请几天、问能不能补作业' },
   { id: 'gaming',     cat: '社交', emoji: '🎮', name: '游戏开黑',     role: '队友',         brief: '报位置、催支援、甩锅或认错、商量战术' },
+  { id: 'loudvideo',  cat: '社交', emoji: '🎧', name: '高铁邻座外放', role: '邻座乘客',     brief: '委婉提醒戴耳机、对方不服气、坚持但要有礼貌、商量解决' },
+  // ---- 日常 · 生活摩擦 ----
+  { id: 'hotpot',     cat: '日常', emoji: '🍲', name: '火锅店等位',   role: '前台叫号员',   brief: '问还要等多久、说明几个人、离开一下再回来、解释刚才没听见叫号' },
+  { id: 'delivery',   cat: '日常', emoji: '🛵', name: '外卖洒了',     role: '外卖骑手',     brief: '说明餐洒了、商量退款还是重送、体谅对方赶时间、把事说清楚' },
+  { id: 'ridechat',   cat: '日常', emoji: '🚗', name: '网约车闲聊',   role: '热情司机',     brief: '应付连环提问、说清目的地、礼貌地把话题收回来、聊到目的地' },
+  // ---- 办事 · 手续升级 ----
+  { id: 'train',      cat: '办事', emoji: '🎫', name: '春运抢票',     role: '客服专员',     brief: '说明要买哪天的票、问有没有票、候补怎么排、改签规则' },
+  { id: 'driving',    cat: '办事', emoji: '🚘', name: '科目三考试',   role: '考官',         brief: '上车前报告、听懂指令、解释熄火原因、问成绩' },
+  { id: 'airport',    cat: '办事', emoji: '✈️', name: '行李超重',     role: '值机柜员',     brief: '承认超重、商量怎么办、当场开箱拿东西、托运还是手提' },
+  // ---- 奇遇 · 中国特色名场面 ----
+  { id: 'scriptkill', cat: '奇遇', emoji: '🎭', name: '剧本杀拼场',   role: 'DM 主持人',    brief: '问能不能拼车、选角色、听规则、被大家怀疑是凶手' },
+  { id: 'escape',     cat: '奇遇', emoji: '🗝️', name: '密室逃脱卡关', role: '密室 NPC',     brief: '卡关了求助、描述手里的线索、听懂提示、喊队友配合' },
+  { id: 'square',     cat: '奇遇', emoji: '💃', name: '广场舞入伙',   role: '领舞大妈',     brief: '想加入、跟不上节奏、商量站在哪、被推去领舞' },
+  { id: 'mahjong',    cat: '奇遇', emoji: '🀄', name: '麻将三缺一',   role: '邻居大爷',     brief: '被拉来凑桌、承认不太会、边学边玩、点炮了得认' },
+  { id: 'corner',     cat: '奇遇', emoji: '❤️', name: '公园相亲角',   role: '替孩子来的大妈', brief: '应付连环盘问、介绍自己、礼貌脱身、不留联系方式' },
+  { id: 'tourist',    cat: '奇遇', emoji: '🏔️', name: '景区拒绝拉客', role: '拉客的司机',   brief: '问路、拒绝包车、坚持自己的行程、把价格砍下来' },
+  { id: 'hanfu',      cat: '奇遇', emoji: '🏮', name: '汉服店租赁',   role: '店员',         brief: '挑款式、问押金和时长、谈拍照、还衣服时说清污渍' },
 ];
 
-const SCENE_CATS = ['全部', '日常', '办事', '社交'];
+const SCENE_CATS = ['全部', '日常', '办事', '社交', '奇遇'];
 
 /* ---------------- 角色性格 ---------------- */
 
@@ -45,6 +62,8 @@ const PERSONAS = [
   { id: 'chill',   name: '佛系',     emoji: '🍃', desc: '什么都行、慢悠悠，但你想快也快不起来' },
   { id: 'sales',   name: '推销狂',   emoji: '💸', desc: '疯狂安利，一直劝你加钱、升级、办卡' },
   { id: 'tsundere',name: '傲娇',     emoji: '😤', desc: '嘴上嫌弃你，其实还是帮你办了' },
+  { id: 'drama',   name: '戏精',     emoji: '🎭', desc: '一惊一乍的浮夸表演型，什么小事都能演出大戏' },
+  { id: 'grandpa', name: '老大爷',   emoji: '🧓', desc: '慢条斯理，爱讲道理，动不动就「想当年」' },
 ];
 
 /* ---------------- 本局挑战（随机约束，增加变数） ---------------- */
@@ -78,6 +97,9 @@ const TWISTS = [
   { id: 'closing', emoji: '🚪', text: '快下班 / 快关门了，对方催你抓紧' },
   { id: 'wrongnum',emoji: '🔢', text: '对方把你说的数字记错了（价格 / 时间 / 数量）' },
   { id: 'change',  emoji: '🔄', text: '对方临时改了主意，之前说好的不算数了' },
+  { id: 'mistaken',emoji: '💥', text: '对方认错人了，把你当成老熟人热情寒暄' },
+  { id: 'filming', emoji: '📷', text: '对方突然举起手机对着你拍，说要发到网上' },
+  { id: 'dialect', emoji: '🗣️', text: '对面来了个说话带重口音的人，你得请他说慢一点' },
 ];
 
 /* ---------------- 本地回落模板 ---------------- */
@@ -105,8 +127,12 @@ function pickMany(arr, n) {
   return out;
 }
 
-/**
- * 抽一局的随机要素组合。
+/** 素材池总组合数（场景 × 性格 × 挑战 × 意外 × 意外插入位置 2 种） */
+function comboCount() {
+  return SCENE_POOL.length * PERSONAS.length * CURSES.length * TWISTS.length * 2;
+}
+
+/** 抽一局的随机要素组合。
  * @param {string} cat 场景分类，'全部' 时从全池抽
  */
 function rollSetup(cat = '全部') {

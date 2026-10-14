@@ -910,6 +910,16 @@ $('backToScenesBtn').addEventListener('click', quitScene);
   renderTable();
   renderCatRow();
   reroll();
+  // 素材池统计：直接读 scenes.js 实时计算，改素材池不用改页面
+  const combo = comboCount();
+  $('statScenes').textContent = SCENE_POOL.length;
+  $('statPersonas').textContent = PERSONAS.length;
+  $('statCurses').textContent = CURSES.length;
+  $('statTwists').textContent = TWISTS.length;
+  $('statCombo').textContent = combo.toLocaleString();
+  $('aboutPool').textContent =
+    `${SCENE_POOL.length} 场景 × ${PERSONAS.length} 性格 × ${CURSES.length} 挑战 × ${TWISTS.length} 意外`;
+  $('aboutCombo').textContent = combo.toLocaleString();
   $('sceneLevelNote').textContent =
     `对话难度跟随你在「练习」页选的 HSK ${currentLevel}；改等级后重开一局才生效。`;
 })();

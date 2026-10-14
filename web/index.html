@@ -158,11 +158,11 @@
             你说的话决定对话能不能往下走，说不明白对方就听不懂。
           </p>
           <div class="hero-stats">
-            <div class="hstat"><b>18</b><span>场景</span></div>
-            <div class="hstat"><b>10</b><span>对手性格</span></div>
-            <div class="hstat"><b>9</b><span>本局挑战</span></div>
-            <div class="hstat"><b>14</b><span>意外事件</span></div>
-            <div class="hstat"><b><em>45,360</em></b><span>组合数</span></div>
+            <div class="hstat"><b id="statScenes">—</b><span>场景</span></div>
+            <div class="hstat"><b id="statPersonas">—</b><span>对手性格</span></div>
+            <div class="hstat"><b id="statCurses">—</b><span>本局挑战</span></div>
+            <div class="hstat"><b id="statTwists">—</b><span>意外事件</span></div>
+            <div class="hstat"><b><em id="statCombo">—</em></b><span>组合数</span></div>
           </div>
         </div>
         <img class="hero-img" src="assets/cards-hero.png" alt="四张随机牌插画">
@@ -308,7 +308,7 @@
         <p>每一局由 <b>场景 + 对手性格 + 本局挑战 + 意外事件</b> 四张牌随机组成，点「🎲 换一批」重抽。
         开局后 AI 会<b>现场编写这一局的剧本</b>（开场白、4 轮任务、意外的台词），所以同一个场景再玩一次也不一样。</p>
         <ul class="list">
-          <li>素材池：18 场景 × 10 性格 × 9 挑战 × 14 意外，组合数 45,360</li>
+          <li>素材池：<b id="aboutPool">—</b>，组合数 <b id="aboutCombo">—</b>（数字来自 scenes.js，改动素材池自动更新）</li>
           <li><b>意外事件</b>会在第 2 或第 3 轮突然插入，角色会把那句话说出口，你得临场应对</li>
           <li>只是重复原来那句话不算化解，要能处理新情况才算过——这一点写进了判断提示词</li>
           <li>AI 编的剧本要过结构校验，不合格就回落本地模板，并在页面上如实标明来源</li>
@@ -330,7 +330,7 @@
 </main>
 
 <footer class="foot">
-  HSK AI 中文陪练 · MVP v0.1 · 数据仅用于功能验证，不代表任何真实用户行为
+  HSK AI 中文陪练 · MVP v0.7 · 数据仅用于功能验证，不代表任何真实用户行为
 </footer>
 
 <script src="providers.js"></script>
