@@ -1,4 +1,4 @@
-# HSK AI 中文陪练 · MVP v0.4
+# HSK AI 中文陪练 · MVP v0.5
 
 两个模式：
 - **一句话纠错**：中文学习者写完一句话，不知道说得对不对、怎样更自然
@@ -153,6 +153,7 @@ web/
 ├─ index.html       页面结构（练习 / 场景 / 测试案例 / 说明 四个页签）
 ├─ styles.css       样式
 ├─ providers.js     服务商预设 + Base URL 自动补全逻辑
+├─ assets/          AI 生成的视觉资源：吉祥物 mascot.png、场景页横幅 cards-hero.png
 ├─ scenes.js        随机素材池：18 场景 × 10 性格 × 9 挑战 × 14 意外
 ├─ director.js      AI 导演：开局编剧本 + 剧本校验 + 失败回落
 ├─ scorecard.js     成绩卡 canvas 绘制

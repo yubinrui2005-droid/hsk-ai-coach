@@ -10,10 +10,10 @@
 
 <header class="topbar">
   <div class="brand">
-    <span class="logo">海</span>
+    <img class="logo" src="assets/mascot.png" alt="HSK 海岛吉祥物">
     <div>
       <h1>HSK AI 中文陪练</h1>
-      <p class="sub">MVP · 一句话纠错</p>
+      <p class="sub">HSK 海岛 · 把纠错变成通关钥匙</p>
     </div>
   </div>
   <nav class="tabs">
@@ -146,13 +146,18 @@
   <!-- ============ 场景 ============ -->
   <section id="panel-scene" class="panel">
 
-    <div class="card" id="scenePickerCard">
-      <h2>随机开局</h2>
-      <p class="hint">
-        每一局由 <b>场景 + 对手性格 + 本局挑战 + 意外事件</b> 四张牌随机组成，
-        开局的剧本由 AI 现场编写——<b>同一场景再玩一次，台词也不一样</b>。
-        你说的话决定对话能不能往下走，说不明白对方就听不懂。
-      </p>
+    <div class="card hero-card" id="scenePickerCard">
+      <div class="hero">
+        <div class="hero-text">
+          <h2>随机开局</h2>
+          <p class="hint">
+            每一局由 <b>场景 + 对手性格 + 本局挑战 + 意外事件</b> 四张牌随机组成，
+            开局的剧本由 AI 现场编写——<b>同一场景再玩一次，台词也不一样</b>。
+            你说的话决定对话能不能往下走，说不明白对方就听不懂。
+          </p>
+        </div>
+        <img class="hero-img" src="assets/cards-hero.png" alt="四张随机牌插画">
+      </div>
 
       <label class="field-label">场景类别</label>
       <div class="cat-row" id="sceneCatRow"></div>

@@ -75,8 +75,9 @@ function infoLine(ctx, x, y, w, emoji, label, text, tone) {
  * @param {CanvasRenderingContext2D} ctx
  * @param {object} d  { sceneName, sceneEmoji, role, persona, curse, twist, twistEmoji,
  *                      twistHandled, twistFired, done, total, retry, peek, ms, best, model }
+ * @param {HTMLImageElement} [logoImg]  可选的吉祥物图，画在页眉右侧
  */
-function drawScoreCard(ctx, d) {
+function drawScoreCard(ctx, d, logoImg) {
   const PAD = 52;
   const W = CARD_W;
   const IN = W - PAD * 2;
@@ -94,6 +95,21 @@ function drawScoreCard(ctx, d) {
   ctx.font = `400 15px ${CARD_FONT}`;
   ctx.textBaseline = 'alphabetic';
   ctx.fillText('HSK AI 中文陪练 · 场景对话', PAD, y);
+
+  // 吉祥物（若有）
+  if (logoImg && logoImg.naturalWidth) {
+    const s = 52;
+    const cx = W - PAD - s / 2;
+    const cy = y - s / 2 + 4;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, s / 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#f6f0e6';
+    ctx.fill();
+    ctx.clip();
+    ctx.drawImage(logoImg, cx - s / 2, cy - s / 2, s, s);
+    ctx.restore();
+  }
 
   y += 46;
   // 场景名

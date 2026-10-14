@@ -623,7 +623,7 @@ function finishScene() {
 
   const cv = $('scoreCanvas');
   const ctx = cv.getContext('2d');
-  drawScoreCard(ctx, {
+  const cardData = {
     sceneName: s.name,
     sceneEmoji: s.emoji,
     role: s.role,
@@ -640,7 +640,13 @@ function finishScene() {
     ms,
     best: st.best,
     model: cfg.model,
-  });
+  };
+
+  const render = (img) => drawScoreCard(ctx, cardData, img);
+  const logo = new Image();
+  logo.onload = () => render(logo);
+  logo.onerror = () => render();
+  logo.src = 'assets/mascot.png';
 
   $('sceneRunCard').hidden = true;
   $('sceneDoneCard').hidden = false;
